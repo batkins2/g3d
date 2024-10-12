@@ -1,0 +1,37 @@
+// -- written by groverbuger for g3d
+// -- september 2021
+// -- MIT license
+
+require("g3d/grover3d.chai")
+global g3d
+global earth
+global moon
+global background
+global timer = 0
+
+def load() {
+    g3d = grover3d()
+    earth = g3d.newModel("assets/sphere.obj", "assets/earth.png", [4,0,0])
+    moon = g3d.newModel("assets/sphere.obj", "assets/moon.png", [4,5,0], false, 0.5)
+    background = g3d.newModel("assets/sphere.obj", "assets/starfield.png", false, false, 500)
+}
+
+def update(dt) {
+    timer = timer + dt
+    moon.setTranslation(math.cos(timer)*5 + 4, math.sin(timer)*5, 0)
+    moon.setRotation(0, 0, timer - math.pi/2)
+    g3d.camera.firstPersonMovement(dt)
+    if (love.keyboard.isDown("escape")) {
+        love.event.push("quit")
+    }
+}
+
+def draw() {
+    earth.draw()
+    moon.draw()
+    background.draw()
+}
+
+def mousemoved(x,y, dx,dy) {
+    g3d.camera.firstPersonLook(dx,dy)
+}

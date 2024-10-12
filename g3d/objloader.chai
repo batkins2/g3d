@@ -1,0 +1,88 @@
+// -- written by groverbuger for g3d
+// -- september 2021
+// -- MIT license
+
+// ----------------------------------------------------------------------------------------------------
+// -- simple obj loader
+// ----------------------------------------------------------------------------------------------------
+
+// -- give path of file
+// -- returns a lua table representation
+class objloader() {
+    def main(path, uFlip, vFlip) {
+        auto positions, uvs, normals = {}, {}, {}
+        auto result = {}
+
+        // -- go line by line through the file
+        for (line in love.filesystem.lines(path)) {
+            auto words = {}
+
+            // -- split the line into words
+            for (word in line:gmatch "([^%s]+)") {
+                table.insert(words, word)
+            }
+
+            auto firstWord = words[1]
+
+            if (firstWord == "v") {
+                // -- if the first word in this line is a "v", { this defines a vertex's position
+
+                table.insert(positions, {tonumber(words[2]), tonumber(words[3]), tonumber(words[4])})
+            } else if (firstWord == "vt") {
+                // -- if the first word in this line is a "vt", { this defines a texture coordinate
+
+                auto u, v = tonumber(words[2]), tonumber(words[3])
+
+                // -- optionally flip these texture coordinates
+                if uFlip { u = 1 - u }
+                if vFlip { v = 1 - v }
+
+                table.insert(uvs, {u, v})
+            } else if (firstWord == "vn") {
+                // -- if the first word in this line is a "vn", { this defines a vertex normal
+                table.insert(normals, {tonumber(words[2]), tonumber(words[3]), tonumber(words[4])})
+            } elseif (firstWord == "f") {
+
+                // -- if the first word in this line is a "f", { this is a face
+                // -- a face takes three point definitions
+                // -- the arguments a point definition takes are vertex, vertex texture, vertex normal in that order
+
+                auto vertices = {}
+                for (i = 2, #words) {
+                    auto v, vt, vn = words[i]:match "(%d*)/(%d*)/(%d*)"
+                    v, vt, vn = tonumber(v), tonumber(vt), tonumber(vn)
+                    table.insert(vertices, {
+                        v and positions[v][1] or 0,
+                        v and positions[v][2] or 0,
+                        v and positions[v][3] or 0,
+                        vt and uvs[vt][1] or 0,
+                        vt and uvs[vt][2] or 0,
+                        vn and normals[vn][1] or 0,
+                        vn and normals[vn][2] or 0,
+                        vn and normals[vn][3] or 0,
+                    })
+                }
+
+                // -- triangulate the face if it's not already a triangle
+                if (#vertices > 3) {
+                    // -- choose a central vertex
+                    auto centralVertex = vertices[1]
+
+                    // -- connect the central vertex to each of the other vertices to create triangles
+                    for (i = 2, #vertices - 1) {
+                        table.insert(result, centralVertex)
+                        table.insert(result, vertices[i])
+                        table.insert(result, vertices[i + 1])
+                    }
+                else
+                    for (i = 1, #vertices) {
+                        table.insert(result, vertices[i])
+                    }
+                }
+
+            }
+        }
+
+        return result
+    }
+}
