@@ -48,18 +48,18 @@
 class grover3d {
   def grover3d() {
     // -- the shader is what does the heavy lifting, displaying 3D meshes on your 2D monitor
-    if(love.chai_gfx.newShader("g3d/g3d.vert")) {
-      this.newModel = require("model.chai")
-      this.camera = require("camera.chai")
-      this.collisions = require("collisions.chai")
-      this.loadObj = require("objloader.chai")
-      this.vectors = require("vectors.chai")
-      this.camera.updateProjectionMatrix()
-      this.camera.updateViewMatrix()
+    love.chai_gfx.newShader("g3d/g3d.vert")
+    this.newModel = require("g3d/model.chai")
+    this.camera = require("g3d/camera.chai")
+    this.collisions = require("g3d/collisions.chai")
+    this.loadObj = require("g3d/objloader.chai")
+    this.vectors = require("g3d/vectors.chai")
+    this.camera.updateProjectionMatrix()
+    this.camera.updateViewMatrix()
 
-      // -- so that far polygons don't overlap near polygons
-      love.gfx.setDepthMode("lequal", true)
-    }
+    // -- so that far polygons don't overlap near polygons
+    love.gfx.setDepthMode("lequal", true)
+
     // -- get rid of g3d from the global namespace and return it instead
     // auto g3d = g3d
     // _G.g3d = nil

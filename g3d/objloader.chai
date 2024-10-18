@@ -8,8 +8,8 @@
 
 // -- give path of file
 // -- returns a lua table representation
-class objloader() {
-    def main(path, uFlip, vFlip) {
+class objloader {
+    def objloader(path, uFlip, vFlip) {
         auto positions, uvs, normals = {}, {}, {}
         auto result = {}
 

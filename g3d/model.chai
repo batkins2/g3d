@@ -2,11 +2,11 @@
 // -- september 2021
 // -- MIT license
 
-auto newMatrix = require(g3d.path + ".matrices")
-auto loadObjFile = require(g3d.path + ".objloader")
-auto collisions = require(g3d.path + ".collisions")
-auto vectors = require(g3d.path + ".vectors")
-auto camera = require(g3d.path + ".camera")
+auto newMatrix = require("g3d/matrices.chai")
+auto loadObjFile = require("g3d/objloader.chai")
+auto collisions = require("g3d/collisions.chai")
+auto vectors = require("g3d/vectors.chai")
+auto camera = require("g3d/camera.chai")
 auto vectorCrossProduct = vectors.crossProduct
 auto vectorNormalize = vectors.normalize
 
@@ -14,70 +14,119 @@ auto vectorNormalize = vectors.normalize
 // -- define a model class
 // ----------------------------------------------------------------------------------------------------
 
-auto model = {}
-model.__index = model
 
-// -- define some default properties that every model should inherit
-// -- that being the standard vertexFormat and basic 3D shader
-model.vertexFormat = {
-    {"VertexPosition", "float", 3},
-    {"VertexTexCoord", "float", 2},
-    {"VertexNormal", "float", 3},
-    {"VertexColor", "byte", 4},
-}
-model.shader = g3d.shader
+class model {
+    def model() {
+        // -- define some default properties that every model should inherit
+        // -- that being the standard vertexFormat and basic 3D shader
+        this.vertexFormat = [
+            ["VertexPosition", "float", 3],
+            ["VertexTexCoord", "float", 2],
+            ["VertexNormal", "float", 3],
+            ["VertexColor", "byte", 4]
+        ]
+        this.shader = g3d.shader
 
-// -- this returns a new instance of the model class
-// -- a model must be given a .obj file || equivalent lua table, and a texture
-// -- translation, rotation, and scale are all 3d vectors and are all optional
-def newModel(verts, texture, translation, rotation, scale) {
-    auto self = setmetatable({}, model)
-
-    // -- if verts is a string, use it as a path to a .obj file
-    // -- otherwise verts is a table, use it as a model defintion
-    if (type(verts) == "string") {
-        verts = loadObjFile(verts)
+        // -- makes models use less memory when loaded in ram
+        // -- by storing the vertex data in an array of vertix structs instead of lua tables
+        // -- requires ffi
+        // -- note: throws away the model's verts table
+        // auto success, ffi = pcall(require, "ffi")
+        // if (success) {
+        //     ffi.cdef([[
+        //         struct vertex {
+        //             float x, y, z;
+        //             float u, v;
+        //             float nx, ny, nz;
+        //             uint8_t r, g, b, a;
+        //         }
+        //     ]])
+        //     this.ffi = ffi
+        // }
     }
 
-    // -- if texture is a string, use it as a path to an image file
-    // -- otherwise texture is already an image, so don't bother
-    if (type(texture) == "string") {
-        texture = love.graphics.newImage(texture)
+    // def compress() {
+    //     auto data = love.data.newByteData(this.ffi.sizeof("struct vertex") * #this.verts)
+    //     auto datapointer = this.ffi.cast("struct vertex *", data:getFFIPointer())
+
+    //     for i, vert in ipairs(this.verts) {
+    //         auto dataindex = i - 1
+    //         datapointer[dataindex].x  = vert[1]
+    //         datapointer[dataindex].y  = vert[2]
+    //         datapointer[dataindex].z  = vert[3]
+    //         datapointer[dataindex].u  = vert[4] || 0
+    //         datapointer[dataindex].v  = vert[5] || 0
+    //         datapointer[dataindex].nx = vert[6] || 0
+    //         datapointer[dataindex].ny = vert[7] || 0
+    //         datapointer[dataindex].nz = vert[8] || 0
+    //         datapointer[dataindex].r  = (vert[9] || 1)*255
+    //         datapointer[dataindex].g  = (vert[10] || 1)*255
+    //         datapointer[dataindex].b  = (vert[11] || 1)*255
+    //         datapointer[dataindex].a  = (vert[12] || 1)*255
+    //     }
+
+    //     this.mesh.release()
+    //     this.mesh = love.chai_gfx.newMesh(this.vertexFormat, #this.verts, "triangles")
+    //     this.mesh.setVertices(data)
+    //     this.mesh.setTexture(this.texture)
+    //     this.verts = nil
+    // }
+
+    // -- this returns a new instance of the model class
+    // -- a model must be given a .obj file || equivalent lua table, and a texture
+    // -- translation, rotation, and scale are all 3d vectors and are all optional
+    def newModel(verts, texture, translation, rotation, scale) {
+        // -- if verts is a string, use it as a path to a .obj file
+        // -- otherwise verts is a table, use it as a model defintion
+        if (type(verts) == "string") {
+            verts = loadObjFile(verts)
+        }
+
+        // -- if texture is a string, use it as a path to an image file
+        // -- otherwise texture is already an image, so don't bother
+        if (type(texture) == "string") {
+            texture = love.chai_gfx.newImage(texture)
+        }
+
+        // -- initialize my variables
+        this.verts = verts
+        this.texture = texture
+        this.mesh = love.chai_gfx.newMesh(this.vertexFormat, this.verts, "triangles")
+        this.mesh.setTexture(this.texture)
+        this.matrix = newMatrix()
+        if (type(scale) == "number") { scale = [scale, scale, scale] }
+        this.setTransform(translation || [0,0,0], rotation || [0,0,0], scale || [1,1,1])
+
+        return this
     }
-
-    // -- initialize my variables
-    this.verts = verts
-    this.texture = texture
-    this.mesh = love.graphics.newMesh(this.vertexFormat, this.verts, "triangles")
-    this.mesh:setTexture(this.texture)
-    this.matrix = newMatrix()
-    if (type(scale) == "number") { scale = {scale, scale, scale} }
-    this.setTransform(translation || {0,0,0}, rotation || {0,0,0}, scale || {1,1,1})
-
-    return self
-}
-
-class model() {
     // -- populate model's normals in model's mesh automatically
     // -- if true is passed in, { the normals are all flipped
     def makeNormals(isFlipped) {
-        for (i=1, #this.verts, 3) {
+        for (var i=1; i < this.verts; i+=3) {
             if (isFlipped) {
-                this.verts[i+1], this.verts[i+2] = this.verts[i+2], this.verts[i+1]
+                auto tempVerts = this.verts
+                this.verts[i+1] = this.tempVerts[i+2]
+                this.verts[i+2] = this.tempVerts[i+1]
             }
 
             auto vp = this.verts[i]
             auto v = this.verts[i+1]
             auto vn = this.verts[i+2]
 
-            auto n_1, n_2, n_3 = vectorNormalize(vectorCrossProduct(v[1]-vp[1], v[2]-vp[2], v[3]-vp[3], vn[1]-v[1], vn[2]-v[2], vn[3]-v[3]))
-            vp[6], v[6], vn[6] = n_1, n_1, n_1
-            vp[7], v[7], vn[7] = n_2, n_2, n_2
-            vp[8], v[8], vn[8] = n_3, n_3, n_3
+            auto n = vectorNormalize(vectorCrossProduct(v[1]-vp[1], v[2]-vp[2], v[3]-vp[3], vn[1]-v[1], vn[2]-v[2], vn[3]-v[3]))
+            vp[6] = n[0]
+            v[6] = n[0]
+            vn[6] = n[0]
+            vp[7] = n[1]
+            v[7] = n[1]
+            vn[7] = n[1]
+            vp[8] = n[2]
+            v[8] = n[2]
+            vn[8] = n[2]
         }
 
-        this.mesh = love.graphics.newMesh(this.vertexFormat, this.verts, "triangles")
-        this.mesh:setTexture(this.texture)
+        this.mesh = love.chai_gfx.newMesh(this.vertexFormat, this.verts, "triangles")
+        this.mesh.setTexture(this.texture)
     }
 
     // -- move and rotate given two 3d vectors
@@ -108,12 +157,12 @@ class model() {
 
     // -- create a quaternion from an axis and an angle
     def setAxisAngleRotation(x,y,z,angle) {
-        x,y,z = vectorNormalize(x,y,z)
+        vec = vectorNormalize(x,y,z)
         angle = angle / 2
 
-        this.rotation[1] = x * math.sin(angle)
-        this.rotation[2] = y * math.sin(angle)
-        this.rotation[3] = z * math.sin(angle)
+        this.rotation[1] = vec[0] * math.sin(angle)
+        this.rotation[2] = vec[1] * math.sin(angle)
+        this.rotation[3] = vec[2] * math.sin(angle)
         this.rotation[4] = math.cos(angle)
 
         this.updateMatrix()
@@ -144,15 +193,15 @@ class model() {
     // -- draw the model
     def draw(shader) {
         auto shader = shader || this.shader
-        love.graphics.setShader(shader)
+        love.chai_gfx.setShader(shader)
         shader.send("modelMatrix", this.matrix)
         shader.send("viewMatrix", camera.viewMatrix)
         shader.send("projectionMatrix", camera.projectionMatrix)
-        if (shader:hasUniform "isCanvasEnabled") {
-            shader:send("isCanvasEnabled", love.graphics.getCanvas() ~= nil)
+        if (shader.hasUniform("isCanvasEnabled")) {
+            shader.send("isCanvasEnabled", love.chai_gfx.getCanvas() != nil)
         }
-        love.graphics.draw(this.mesh)
-        love.graphics.setShader()
+        love.chai_gfx.draw(this.mesh)
+        love.chai_gfx.setShader()
     }
 
     // -- the fallback def if ffi was not loaded
@@ -160,66 +209,23 @@ class model() {
         print("[g3d warning] Compression requires FFI!\n" + debug.traceback())
     }
 
-    // -- makes models use less memory when loaded in ram
-    // -- by storing the vertex data in an array of vertix structs instead of lua tables
-    // -- requires ffi
-    // -- note: throws away the model's verts table
-    auto success, ffi = pcall(require, "ffi")
-    if (success) {
-        ffi.cdef([[
-            struct vertex {
-                float x, y, z;
-                float u, v;
-                float nx, ny, nz;
-                uint8_t r, g, b, a;
-            }
-        ]])
-
-        def compress() {
-            auto data = love.data.newByteData(ffi.sizeof("struct vertex") * #this.verts)
-            auto datapointer = ffi.cast("struct vertex *", data:getFFIPointer())
-
-            for i, vert in ipairs(this.verts) do
-                auto dataindex = i - 1
-                datapointer[dataindex].x  = vert[1]
-                datapointer[dataindex].y  = vert[2]
-                datapointer[dataindex].z  = vert[3]
-                datapointer[dataindex].u  = vert[4] || 0
-                datapointer[dataindex].v  = vert[5] || 0
-                datapointer[dataindex].nx = vert[6] || 0
-                datapointer[dataindex].ny = vert[7] || 0
-                datapointer[dataindex].nz = vert[8] || 0
-                datapointer[dataindex].r  = (vert[9] || 1)*255
-                datapointer[dataindex].g  = (vert[10] || 1)*255
-                datapointer[dataindex].b  = (vert[11] || 1)*255
-                datapointer[dataindex].a  = (vert[12] || 1)*255
-            }
-
-            this.mesh.release()
-            this.mesh = love.graphics.newMesh(this.vertexFormat, #this.verts, "triangles")
-            this.mesh.setVertices(data)
-            this.mesh.setTexture(this.texture)
-            this.verts = nil
-        }
+    def rayIntersection(src_x, src_y, src_z, dir_x, dir_y, dir_z) {
+        return collisions.rayIntersection(this.verts, this, src_x, src_y, src_z, dir_x, dir_y, dir_z)
     }
 
-    def rayIntersection(...) {
-        return collisions.rayIntersection(this.verts, self, ...)
+    def isPointInside(x, y, z) {
+        return collisions.isPointInside(this.verts, this, x, y, z)
     }
 
-    def isPointInside(...) {
-        return collisions.isPointInside(this.verts, self, ...)
+    def sphereIntersection(src_x, src_y, src_z, radius) {
+        return collisions.sphereIntersection(this.verts, this, src_x, src_y, src_z, radius)
     }
 
-    def sphereIntersection(...) {
-        return collisions.sphereIntersection(this.verts, self, ...)
+    def closestPoint(src_x, src_y, src_z) {
+        return collisions.closestPoint(this.verts, this, src_x, src_y, src_z)
     }
 
-    def closestPoint(...) {
-        return collisions.closestPoint(this.verts, self, ...)
-    }
-
-    def capsuleIntersection(...) {
-        return collisions.capsuleIntersection(this.verts, self, ...)
+    def capsuleIntersection(tip_x, tip_y, tip_z, base_x, base_y, base_z, radius) {
+        return collisions.capsuleIntersection(this.verts, this, tip_x, tip_y, tip_z, base_x, base_y, base_z, radius)
     }
 }

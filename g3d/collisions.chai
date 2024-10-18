@@ -445,7 +445,7 @@ def findAny(self, verts, func, ...) {
 // -- collision functions that apply on lists of vertices
 // ----------------------------------------------------------------------------------------------------
 
-class collisions() {
+class collisions {
     def rayIntersection(verts, transform, src_x, src_y, src_z, dir_x, dir_y, dir_z) {
         return findClosest(transform, verts, triangleRay, src_x, src_y, src_z, dir_x, dir_y, dir_z)
     }
