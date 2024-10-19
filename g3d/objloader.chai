@@ -10,73 +10,72 @@
 // -- returns a lua table representation
 class objloader {
     def objloader(path, uFlip, vFlip) {
-        auto positions, uvs, normals = {}, {}, {}
-        auto result = {}
+        auto positions = []
+        auto uvs = []
+        auto normals = []
+        auto result = []
 
         // -- go line by line through the file
-        for (line in love.filesystem.lines(path)) {
-            auto words = {}
-
+        auto lines = love.filesystem.lines(path)
+        for (var line = 0; line < lines.size(); ++line) {
             // -- split the line into words
-            for (word in line:gmatch "([^%s]+)") {
-                table.insert(words, word)
-            }
+            auto words = lines[line].RegexMatcher("([^%s]+)")
 
-            auto firstWord = words[1]
+            auto firstWord = words[0]
 
             if (firstWord == "v") {
                 // -- if the first word in this line is a "v", { this defines a vertex's position
 
-                table.insert(positions, {tonumber(words[2]), tonumber(words[3]), tonumber(words[4])})
+                positions.push_back([words[1], words[2], words[3]])
             } else if (firstWord == "vt") {
                 // -- if the first word in this line is a "vt", { this defines a texture coordinate
 
-                auto u, v = tonumber(words[2]), tonumber(words[3])
+                auto u = words[1]
+                auto v = words[2]
 
                 // -- optionally flip these texture coordinates
-                if uFlip { u = 1 - u }
-                if vFlip { v = 1 - v }
+                if (uFlip) { u = 1 - u }
+                if (vFlip) { v = 1 - v }
 
-                table.insert(uvs, {u, v})
+                uvs.push_back([u, v])
             } else if (firstWord == "vn") {
                 // -- if the first word in this line is a "vn", { this defines a vertex normal
-                table.insert(normals, {tonumber(words[2]), tonumber(words[3]), tonumber(words[4])})
-            } elseif (firstWord == "f") {
+                normals.push_back([words[1], words[2], words[3]])
+            } else if (firstWord == "f") {
 
                 // -- if the first word in this line is a "f", { this is a face
                 // -- a face takes three point definitions
                 // -- the arguments a point definition takes are vertex, vertex texture, vertex normal in that order
 
-                auto vertices = {}
-                for (i = 2, #words) {
-                    auto v, vt, vn = words[i]:match "(%d*)/(%d*)/(%d*)"
-                    v, vt, vn = tonumber(v), tonumber(vt), tonumber(vn)
-                    table.insert(vertices, {
-                        v and positions[v][1] or 0,
-                        v and positions[v][2] or 0,
-                        v and positions[v][3] or 0,
-                        vt and uvs[vt][1] or 0,
-                        vt and uvs[vt][2] or 0,
-                        vn and normals[vn][1] or 0,
-                        vn and normals[vn][2] or 0,
-                        vn and normals[vn][3] or 0,
-                    })
+                auto vertices = []
+                for (var i = 1; i < words.size(); ++i) {
+                    auto v = words[i].RegexMatcher("(%d*)/(%d*)/(%d*)")
+                    vertices.push_back([
+                        v[0] && positions[v[0]][1] || 0,
+                        v[0] && positions[v[0]][2] || 0,
+                        v[0] && positions[v[0]][3] || 0,
+                        v[1] && uvs[v[1]][1] || 0,
+                        v[1] && uvs[v[1]][2] || 0,
+                        v[2] && normals[v[2]][1] || 0,
+                        v[2] && normals[v[2]][2] || 0,
+                        v[2] && normals[v[2]][3] || 0
+                    ])
                 }
 
                 // -- triangulate the face if it's not already a triangle
-                if (#vertices > 3) {
+                if (vertices.size() > 3) {
                     // -- choose a central vertex
-                    auto centralVertex = vertices[1]
+                    auto centralVertex = vertices[0]
 
                     // -- connect the central vertex to each of the other vertices to create triangles
-                    for (i = 2, #vertices - 1) {
-                        table.insert(result, centralVertex)
-                        table.insert(result, vertices[i])
-                        table.insert(result, vertices[i + 1])
+                    for (var i = 1; i < vertices - 1; ++i) {
+                        result.push_back(centralVertex)
+                        result.push_back(vertices[i])
+                        result.push_back(vertices[i + 1])
                     }
                 else
-                    for (i = 1, #vertices) {
-                        table.insert(result, vertices[i])
+                    for (var i = 0; i < vertices.size(); ++i) {
+                        result.push_back(vertices[i])
                     }
                 }
 

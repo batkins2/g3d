@@ -2,7 +2,7 @@
 // -- september 2021
 // -- MIT license
 
-auto vectors = require("g3d/vectors.chai")
+// auto vectors = require("g3d/vectors.chai")
 
 // ----------------------------------------------------------------------------------------------------
 // -- matrix class
