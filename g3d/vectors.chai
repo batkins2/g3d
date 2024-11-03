@@ -11,7 +11,6 @@
 
 class vectors {
     def vectors() {
-
     }
 
     def subtract(v1,v2,v3, v4,v5,v6) {
@@ -31,11 +30,11 @@ class vectors {
     }
 
     def dotProduct(a1,a2,a3, b1,b2,b3) {
-        return [a1*b1 + a2*b2 + a3*b3]
+        return a1*b1 + a2*b2 + a3*b3
     }
 
     def normalize(x,y,z) {
-        auto mag = math.sqrt(x^2 + y^2 + z^2)
+        auto mag = sqrt(pow(x*1.0,2.0) + pow(y*1.0,2.0) + pow(z*1.0,2.0) * 1.0)
         if (mag != 0) {
             return [x/mag, y/mag, z/mag]
         } else {
@@ -44,6 +43,6 @@ class vectors {
     }
 
     def magnitude(x,y,z) {
-        return math.sqrt(x^2 + y^2 + z^2)
+        return sqrt(pow(x*1.0,2.0) + pow(y*1.0,2.0) + pow(z*1.0,2.0) * 1.0)
     }
 }

@@ -21,6 +21,10 @@
 // ----------------------------------------------------------------------------------------------------
 
 class collisions {
+    def collisions() {
+
+    }
+
     def rayIntersection(verts, transform, src_x, src_y, src_z, dir_x, dir_y, dir_z) {
         return findClosest(transform, verts, triangleRay, src_x, src_y, src_z, dir_x, dir_y, dir_z)
     }
@@ -39,7 +43,7 @@ class collisions {
 
     def capsuleIntersection(verts, transform, tip_x, tip_y, tip_z, base_x, base_y, base_z, radius) {
         // -- the normal vector coming out the tip of the capsule
-        auto norm = vectors.normalize(tip_x - base_x, tip_y - base_y, tip_z - base_z)
+        auto norm = g3d.vectors.normalize(tip_x - base_x, tip_y - base_y, tip_z - base_z)
 
         // -- the base and tip, inset by the radius
         // -- these two coordinates are the actual extent of the capsule sphere line
@@ -72,8 +76,8 @@ class collisions {
         auto ab_x = b_x - a_x
         auto ab_y = b_y - a_y
         auto ab_z = b_z - a_z
-        auto t = vectors.dotProduct(x - a_x, y - a_y, z - a_z, ab_x, ab_y, ab_z) / (ab_x^2 + ab_y^2 + ab_z^2)
-        t = math.min(1, math.max(0, t))
+        auto t = g3d.vectors.dotProduct(x - a_x, y - a_y, z - a_z, ab_x, ab_y, ab_z) / (ab_x^2 + ab_y^2 + ab_z^2)
+        t = min(1, max(0, t))
         return [a_x + t*ab_x, a_y + t*ab_y, a_z + t*ab_z]
     }
 
@@ -95,26 +99,26 @@ class collisions {
         auto tiny = 2.2204460492503131e-16 // -- the smallest possible value for a double, "double epsilon"
 
         // -- cache these variables for efficiency
-        auto e1 = vectors.subtract(tri_1_x,tri_1_y,tri_1_z, tri_0_x,tri_0_y,tri_0_z)
-        auto e2 = vectors.subtract(tri_2_x,tri_2_y,tri_2_z, tri_0_x,tri_0_y,tri_0_z)
-        auto h = vectors.crossProduct(dir_x,dir_y,dir_z, e2[0],e2[1],e2[2])
-        auto a = vectors.dotProduct(h[0],h[1],h[2], e1[0],e1[1],e1[2])
+        auto e1 = g3d.vectors.subtract(tri_1_x,tri_1_y,tri_1_z, tri_0_x,tri_0_y,tri_0_z)
+        auto e2 = g3d.vectors.subtract(tri_2_x,tri_2_y,tri_2_z, tri_0_x,tri_0_y,tri_0_z)
+        auto h = g3d.vectors.crossProduct(dir_x,dir_y,dir_z, e2[0],e2[1],e2[2])
+        auto a = g3d.vectors.dotProduct(h[0],h[1],h[2], e1[0],e1[1],e1[2])
 
         // -- if a is too close to 0, ray does not intersect triangle
-        if (math.abs(a) <= tiny) {
+        if (abs(a) <= tiny) {
             return
         }
 
-        auto s = vectors.subtract(src_x,src_y,src_z, tri_0_x,tri_0_y,tri_0_z)
-        auto u = vectors.dotProduct(s[0],s[1],s[2], h[0],h[1],h[2]) / a
+        auto s = g3d.vectors.subtract(src_x,src_y,src_z, tri_0_x,tri_0_y,tri_0_z)
+        auto u = g3d.vectors.dotProduct(s[0],s[1],s[2], h[0],h[1],h[2]) / a
 
         // -- ray does not intersect triangle
         if (u < 0 || u > 1) {
             return
         }
 
-        auto q = vectors.crossProduct(s[0],s[1],s[2], e1[0],e1[1],e1[2])
-        auto v = vectors.dotProduct(dir_x,dir_y,dir_z, q[0],q[1],q[2]) / a
+        auto q = g3d.vectors.crossProduct(s[0],s[1],s[2], e1[0],e1[1],e1[2])
+        auto v = g3d.vectors.dotProduct(dir_x,dir_y,dir_z, q[0],q[1],q[2]) / a
 
         // -- ray does not intersect triangle
         if (v < 0 || u + v > 1) {
@@ -123,11 +127,11 @@ class collisions {
 
         // -- at this stage we can compute t to find out where
         // -- the intersection point is on the line
-        auto thisLength = vectors.dotProduct(q[0],q[1],q[2], e2[0],e2[1],e2[2]) / a
+        auto thisLength = g3d.vectors.dotProduct(q[0],q[1],q[2], e2[0],e2[1],e2[2]) / a
 
         // -- if hit this triangle and it's closer than any other hit triangle
         if (thisLength >= tiny && (! finalLength || thisLength < finalLength)) {
-            // --auto norm_x, norm_y, norm_z = vectors.crossProduct(e11,e12,e13, e21,e22,e23)
+            // --auto norm_x, norm_y, norm_z = g3d.vectors.crossProduct(e11,e12,e13, e21,e22,e23)
 
             return [thisLength, src_x + dir_x*thisLength, src_y + dir_y*thisLength, src_z + dir_z*thisLength, n_x,n_y,n_z]
         }
@@ -152,10 +156,10 @@ class collisions {
         auto side2_x = tri_2_x - tri_0_x
         auto side2_y = tri_2_y - tri_0_y
         auto side2_z = tri_2_z - tri_0_z
-        auto n = vectors.normalize(vectors.crossProduct(side1_x, side1_y, side1_z, side2_x, side2_y, side2_z))
+        auto n = g3d.vectors.normalize(g3d.vectors.crossProduct(side1_x, side1_y, side1_z, side2_x, side2_y, side2_z))
 
         // -- distance from src to a vertex on the triangle
-        auto dist = vectors.dotProduct(src_x - tri_0_x, src_y - tri_0_y, src_z - tri_0_z, n[0], n[1], n[2])
+        auto dist = g3d.vectors.dotProduct(src_x - tri_0_x, src_y - tri_0_y, src_z - tri_0_z, n[0], n[1], n[2])
 
         // -- collision not possible, just return
         if (dist < -radius || dist > radius) {
@@ -169,10 +173,10 @@ class collisions {
 
         // -- determine whether itx is inside the triangle
         // -- project it onto the triangle and return if this is the case
-        auto c0 = vectors.crossProduct(itx_x - tri_0_x, itx_y - tri_0_y, itx_z - tri_0_z, tri_1_x - tri_0_x, tri_1_y - tri_0_y, tri_1_z - tri_0_z)
-        auto c1 = vectors.crossProduct(itx_x - tri_1_x, itx_y - tri_1_y, itx_z - tri_1_z, tri_2_x - tri_1_x, tri_2_y - tri_1_y, tri_2_z - tri_1_z)
-        auto c2 = vectors.crossProduct(itx_x - tri_2_x, itx_y - tri_2_y, itx_z - tri_2_z, tri_0_x - tri_2_x, tri_0_y - tri_2_y, tri_0_z - tri_2_z)
-        if (vectors.dotProduct(c0[0], c0[1], c0[2], n[0], n[1], n[2]) <= 0 && vectors.dotProduct(c1[0], c1[1], c1[2], n[0], n[1], n[2]) <= 0 && vectors.dotProduct(c2[0], c2[1], c2[2], n[0], n[1], n[2]) <= 0) {
+        auto c0 = g3d.vectors.crossProduct(itx_x - tri_0_x, itx_y - tri_0_y, itx_z - tri_0_z, tri_1_x - tri_0_x, tri_1_y - tri_0_y, tri_1_z - tri_0_z)
+        auto c1 = g3d.vectors.crossProduct(itx_x - tri_1_x, itx_y - tri_1_y, itx_z - tri_1_z, tri_2_x - tri_1_x, tri_2_y - tri_1_y, tri_2_z - tri_1_z)
+        auto c2 = g3d.vectors.crossProduct(itx_x - tri_2_x, itx_y - tri_2_y, itx_z - tri_2_z, tri_0_x - tri_2_x, tri_0_y - tri_2_y, tri_0_z - tri_2_z)
+        if (g3d.vectors.dotProduct(c0[0], c0[1], c0[2], n[0], n[1], n[2]) <= 0 && g3d.vectors.dotProduct(c1[0], c1[1], c1[2], n[0], n[1], n[2]) <= 0 && g3d.vectors.dotProduct(c2[0], c2[1], c2[2], n[0], n[1], n[2]) <= 0) {
             n_x = src_x - itx_x
             n_y = src_y - itx_y
             n_z = src_z - itx_z
@@ -180,10 +184,10 @@ class collisions {
             // -- the sphere is inside the triangle, so the normal is zero
             // -- instead, just return the triangle's normal
             if (n_x == 0 && n_y == 0 && n_z == 0) {
-                return [vectors.magnitude(n_x, n_y, n_z), itx_x, itx_y, itx_z, tri_n_x, tri_n_y, tri_n_z]
+                return [g3d.vectors.magnitude(n_x, n_y, n_z), itx_x, itx_y, itx_z, tri_n_x, tri_n_y, tri_n_z]
             }
 
-            return [vectors.magnitude(n_x, n_y, n_z), itx_x, itx_y, itx_z, n_x, n_y, n_z]
+            return [g3d.vectors.magnitude(n_x, n_y, n_z), itx_x, itx_y, itx_z, n_x, n_y, n_z]
         }
 
         // -- itx is outside triangle
@@ -227,10 +231,10 @@ class collisions {
             // -- the sphere is inside the triangle, so the normal is zero
             // -- instead, just return the triangle's normal
             if (n_x == 0 && n_y == 0 && n_z == 0) {
-                return [vectors.magnitude(n_x, n_y, n_z), itx_x, itx_y, itx_z, tri_n_x, tri_n_y, tri_n_z]
+                return [g3d.vectors.magnitude(n_x, n_y, n_z), itx_x, itx_y, itx_z, tri_n_x, tri_n_y, tri_n_z]
             }
 
-            return [vectors.magnitude(n_x, n_y, n_z), itx_x, itx_y, itx_z, n_x, n_y, n_z]
+            return [g3d.vectors.magnitude(n_x, n_y, n_z), itx_x, itx_y, itx_z, n_x, n_y, n_z]
         }
     }
 
@@ -253,10 +257,10 @@ class collisions {
         auto side2_x = tri_2_x - tri_0_x
         auto side2_y = tri_2_y - tri_0_y
         auto side2_z = tri_2_z - tri_0_z
-        auto n = vectors.normalize(vectors.crossProduct(side1_x, side1_y, side1_z, side2_x, side2_y, side2_z))
+        auto n = g3d.vectors.normalize(g3d.vectors.crossProduct(side1_x, side1_y, side1_z, side2_x, side2_y, side2_z))
 
         // -- distance from src to a vertex on the triangle
-        auto dist = vectors.dotProduct(src_x - tri_0_x, src_y - tri_0_y, src_z - tri_0_z, n[0], n[1], n[2])
+        auto dist = g3d.vectors.dotProduct(src_x - tri_0_x, src_y - tri_0_y, src_z - tri_0_z, n[0], n[1], n[2])
 
         // -- itx stands for intersection
         auto itx_x = src_x - n[0] * dist
@@ -265,10 +269,10 @@ class collisions {
 
         // -- determine whether itx is inside the triangle
         // -- project it onto the triangle and return if this is the case
-        auto c0 = vectors.crossProduct(itx_x - tri_0_x, itx_y - tri_0_y, itx_z - tri_0_z, tri_1_x - tri_0_x, tri_1_y - tri_0_y, tri_1_z - tri_0_z)
-        auto c1 = vectors.crossProduct(itx_x - tri_1_x, itx_y - tri_1_y, itx_z - tri_1_z, tri_2_x - tri_1_x, tri_2_y - tri_1_y, tri_2_z - tri_1_z)
-        auto c2 = vectors.crossProduct(itx_x - tri_2_x, itx_y - tri_2_y, itx_z - tri_2_z, tri_0_x - tri_2_x, tri_0_y - tri_2_y, tri_0_z - tri_2_z)
-        if  (vectors.dotProduct(c0[0], c0[1], c0[2], n[0], n[1], n[2]) <= 0 && vectors.dotProduct(c1[0], c1[1], c1[2], n[0], n[1], n[2]) <= 0 && vectors.dotProduct(c2[0], c2[1], c2[2], n[0], n[1], n[2]) <= 0) {
+        auto c0 = g3d.vectors.crossProduct(itx_x - tri_0_x, itx_y - tri_0_y, itx_z - tri_0_z, tri_1_x - tri_0_x, tri_1_y - tri_0_y, tri_1_z - tri_0_z)
+        auto c1 = g3d.vectors.crossProduct(itx_x - tri_1_x, itx_y - tri_1_y, itx_z - tri_1_z, tri_2_x - tri_1_x, tri_2_y - tri_1_y, tri_2_z - tri_1_z)
+        auto c2 = g3d.vectors.crossProduct(itx_x - tri_2_x, itx_y - tri_2_y, itx_z - tri_2_z, tri_0_x - tri_2_x, tri_0_y - tri_2_y, tri_0_z - tri_2_z)
+        if  (g3d.vectors.dotProduct(c0[0], c0[1], c0[2], n[0], n[1], n[2]) <= 0 && g3d.vectors.dotProduct(c1[0], c1[1], c1[2], n[0], n[1], n[2]) <= 0 && g3d.vectors.dotProduct(c2[0], c2[1], c2[2], n[0], n[1], n[2]) <= 0) {
             n_x = src_x - itx_x
             n_y = src_y - itx_y
             n_z = src_z - itx_z
@@ -276,10 +280,10 @@ class collisions {
             // -- the sphere is inside the triangle, so the normal is zero
             // -- instead, just return the triangle's normal
             if (n_x == 0 && n_y == 0 && n_z == 0) {
-                return [vectors.magnitude(n_x, n_y, n_z), itx_x, itx_y, itx_z, tri_n_x, tri_n_y, tri_n_z]
+                return [g3d.vectors.magnitude(n_x, n_y, n_z), itx_x, itx_y, itx_z, tri_n_x, tri_n_y, tri_n_z]
             }
 
-            return [vectors.magnitude(n_x, n_y, n_z), itx_x, itx_y, itx_z, n_x, n_y, n_z]
+            return [g3d.vectors.magnitude(n_x, n_y, n_z), itx_x, itx_y, itx_z, n_x, n_y, n_z]
         }
 
         // -- itx is outside triangle
@@ -318,10 +322,10 @@ class collisions {
             // -- the sphere is inside the triangle, so the normal is zero
             // -- instead, just return the triangle's normal
             if (n_x == 0 && n_y == 0 && n_z == 0) {
-                return [vectors.magnitude(n_x, n_y, n_z), itx_x, itx_y, itx_z, tri_n_x, tri_n_y, tri_n_z]
+                return [g3d.vectors.magnitude(n_x, n_y, n_z), itx_x, itx_y, itx_z, tri_n_x, tri_n_y, tri_n_z]
             }
 
-            return [vectors.magnitude(n_x, n_y, n_z), itx_x, itx_y, itx_z, n_x, n_y, n_z]
+            return [g3d.vectors.magnitude(n_x, n_y, n_z), itx_x, itx_y, itx_z, n_x, n_y, n_z]
         }
     }
 
@@ -351,9 +355,9 @@ class collisions {
         auto side2_x = tri_2_x - tri_0_x
         auto side2_y = tri_2_y - tri_0_y
         auto side2_z = tri_2_z - tri_0_z
-        auto n = vectors.normalize(vectors.crossProduct(side1_x, side1_y, side1_z, side2_x, side2_y, side2_z))
+        auto n = g3d.vectors.normalize(g3d.vectors.crossProduct(side1_x, side1_y, side1_z, side2_x, side2_y, side2_z))
 
-        auto dotOfNormals = math.abs(vectors.dotProduct(n[0], n[1], n[2], capn_x, capn_y, capn_z))
+        auto dotOfNormals = abs(g3d.vectors.dotProduct(n[0], n[1], n[2], capn_x, capn_y, capn_z))
 
         // -- default reference point to an arbitrary point on the triangle
         // -- for when dotOfNormals is 0, because { the capsule is parallel to the triangle
@@ -364,7 +368,7 @@ class collisions {
         if (dotOfNormals > 0) {
             // -- capsule is not parallel to the triangle's plane
             // -- find where the capsule's normal vector intersects the triangle's plane
-            auto t = vectors.dotProduct(n_x, n_y, n_z, (tri_0_x - base_x) / dotOfNormals, (tri_0_y - base_y) / dotOfNormals, (tri_0_z - base_z) / dotOfNormals)
+            auto t = g3d.vectors.dotProduct(n_x, n_y, n_z, (tri_0_x - base_x) / dotOfNormals, (tri_0_y - base_y) / dotOfNormals, (tri_0_z - base_z) / dotOfNormals)
             auto plane_itx_x = base_x + capn_x*t
             auto plane_itx_y = base_y + capn_y*t
             auto plane_itx_z = base_z + capn_z*t
@@ -442,7 +446,7 @@ class collisions {
         for (var v=0; v < verts.size(); v+=3) {
             // -- apply the function given with the arguments given
             // -- also supply the points of the current triangle
-            auto n = vectors.normalize(
+            auto n = g3d.vectors.normalize(
                 verts[v][6]*scale_x,
                 verts[v][7]*scale_x,
                 verts[v][8]*scale_x
@@ -493,7 +497,7 @@ class collisions {
 
         // -- normalize the normal vector before it is returned
         if (finalLength) {
-            auto norm = vectors.normalize(norm_x, norm_y, norm_z)
+            auto norm = g3d.vectors.normalize(norm_x, norm_y, norm_z)
             norm_x = norm[0]
             norm_y = norm[1]
             norm_z = norm[2]
@@ -528,7 +532,7 @@ class collisions {
         for (var v=0; v < verts.size(); v+=3) {
             // -- apply the function given with the arguments given
             // -- also supply the points of the current triangle
-            auto n = vectors.normalize(
+            auto n = g3d.vectors.normalize(
                 verts[v][6]*scale_x,
                 verts[v][7]*scale_x,
                 verts[v][8]*scale_x

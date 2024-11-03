@@ -43,15 +43,15 @@ class matrix {
         this.matrix[11] = translation[2]
 
         // -- rotations
-        if (rotation.size() == 3) {
+        if (rotation && rotation.size() == 3) {
             // -- use 3D rotation vector as euler angles
             // -- source: https://en.wikipedia.org/wiki/Rotation_matrix
-            auto ca = math.cos(rotation[2])
-            auto cb = math.cos(rotation[1])
-            auto cc = math.cos(rotation[0])
-            auto sa = math.sin(rotation[2])
-            auto sb = math.sin(rotation[1])
-            auto sc = math.sin(rotation[0])
+            auto ca = cos(rotation[2] * 1.0)
+            auto cb = cos(rotation[1] * 1.0)
+            auto cc = cos(rotation[0] * 1.0)
+            auto sa = sin(rotation[2] * 1.0)
+            auto sb = sin(rotation[1] * 1.0)
+            auto sc = sin(rotation[0] * 1.0)
             this.matrix = [
                 ca*cb,
                 ca*sb*sc - sa*cc,
@@ -70,7 +70,7 @@ class matrix {
                 this.matrix[14],
                 this.matrix[15]
             ]
-        } else {
+        } else if (rotation) {
             // -- use 4D rotation vector as a quaternion
             auto qx = rotation[0]
             auto qy = rotation[1]
@@ -126,7 +126,7 @@ class matrix {
     // -- all arguments are scalars aka normal numbers
     // -- aspectRatio is defined as window width divided by window height
     def setProjectionMatrix(fov, near, far, aspectRatio) {
-        auto top = near * math.tan(fov/2)
+        auto top = near * tan(fov/2)
         auto bottom = -1*top
         auto right = top * aspectRatio
         auto left = -1*right
@@ -144,7 +144,7 @@ class matrix {
     // -- all arguments are scalars aka normal numbers
     // -- aspectRatio is defined as window width divided by window height
     def setOrthographicMatrix(fov, size, near, far, aspectRatio) {
-        auto top = size * math.tan(fov/2)
+        auto top = size * tan(fov/2)
         auto bottom = -1*top
         auto right = top * aspectRatio
         auto left = -1*right
@@ -159,9 +159,10 @@ class matrix {
 
     // -- returns a view matrix
     // -- eye, target, and up are all 3d vectors
-    def setViewMatrix(eye, target, up) {
+    def setViewMatrix(eye, target, up, vectors) {
         auto z = vectors.normalize(eye[0] - target[0], eye[1] - target[1], eye[2] - target[2])
-        auto x = vectors.normalize(vectors.crossProduct(up[0], up[1], up[2], z[0], z[1], z[2]))
+        auto a = vectors.crossProduct(up[0], up[1], up[2], z[0], z[1], z[2])
+        auto x = vectors.normalize(a[0], a[1], a[2])
         auto y = vectors.crossProduct(z[0], z[1], z[2], x[0], x[1], x[2])
 
         this.matrix = [

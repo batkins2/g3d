@@ -19,19 +19,36 @@ class objloader {
         auto lines = love.filesystem.lines(path)
         for (var line = 0; line < lines.size(); ++line) {
             // -- split the line into words
-            auto words = lines[line].RegexMatcher("([^%s]+)")
+            auto words = []
+
+            auto l = lines[line]
+
+            auto pos = 0
+
+            while (true) {
+                auto space = l.find(" ")
+                if (space < 0 || space > l.size()) {
+                    words.push_back(l.substr(pos, l.size()))
+                    // love.window.showMessageBox(l.substr(pos, l.size()))
+                    break
+                }
+                words.push_back(l.substr(pos, space-pos))
+                // love.window.showMessageBox(l.substr(pos, space-pos))
+                l[space] = '_'
+                pos = space + 1
+            }
 
             auto firstWord = words[0]
 
             if (firstWord == "v") {
                 // -- if the first word in this line is a "v", { this defines a vertex's position
 
-                positions.push_back([words[1], words[2], words[3]])
+                positions.push_back([to_float(words[1]), to_float(words[2]), to_float(words[3])])
             } else if (firstWord == "vt") {
                 // -- if the first word in this line is a "vt", { this defines a texture coordinate
 
-                auto u = words[1]
-                auto v = words[2]
+                auto u = to_float(words[1])
+                auto v = to_float(words[2])
 
                 // -- optionally flip these texture coordinates
                 if (uFlip) { u = 1 - u }
@@ -40,7 +57,7 @@ class objloader {
                 uvs.push_back([u, v])
             } else if (firstWord == "vn") {
                 // -- if the first word in this line is a "vn", { this defines a vertex normal
-                normals.push_back([words[1], words[2], words[3]])
+                normals.push_back([to_float(words[1]), to_float(words[2]), to_float(words[3])])
             } else if (firstWord == "f") {
 
                 // -- if the first word in this line is a "f", { this is a face
@@ -49,16 +66,33 @@ class objloader {
 
                 auto vertices = []
                 for (var i = 1; i < words.size(); ++i) {
-                    auto v = words[i].RegexMatcher("(%d*)/(%d*)/(%d*)")
+                    auto v = []
+                    auto vec = words[i]
+
+                    auto pos = 0
+
+                    while (true) {
+                        auto slash = vec.find("/")
+                        if (slash < 0 || slash > vec.size()) {
+                            v.push_back(to_int(vec.substr(pos, vec.size()))-1)
+                            // love.window.showMessageBox(vec.substr(pos, vec.size()))
+                            break
+                        }
+                        v.push_back(to_int(vec.substr(pos, slash-pos))-1)
+                        // love.window.showMessageBox(vec.substr(pos, slash-pos))
+                        vec[slash] = '-'
+                        pos = slash + 1
+                    }
+
                     vertices.push_back([
-                        v[0] && positions[v[0]][1] || 0,
-                        v[0] && positions[v[0]][2] || 0,
-                        v[0] && positions[v[0]][3] || 0,
-                        v[1] && uvs[v[1]][1] || 0,
-                        v[1] && uvs[v[1]][2] || 0,
-                        v[2] && normals[v[2]][1] || 0,
-                        v[2] && normals[v[2]][2] || 0,
-                        v[2] && normals[v[2]][3] || 0
+                        positions[v[0]][0],
+                        positions[v[0]][1],
+                        positions[v[0]][2],
+                        uvs[v[1]][0],
+                        uvs[v[1]][1],
+                        normals[v[2]][0],
+                        normals[v[2]][1],
+                        normals[v[2]][2]
                     ])
                 }
 
@@ -73,7 +107,7 @@ class objloader {
                         result.push_back(vertices[i])
                         result.push_back(vertices[i + 1])
                     }
-                else
+                } else {
                     for (var i = 0; i < vertices.size(); ++i) {
                         result.push_back(vertices[i])
                     }
@@ -81,7 +115,7 @@ class objloader {
 
             }
         }
-
-        return result
+        this.result = result
+        return this
     }
 }
