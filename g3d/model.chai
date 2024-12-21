@@ -76,33 +76,34 @@ class model {
     def newModel(verts, texture, translation, rotation, scale) {
         // -- if verts is a string, use it as a path to a .obj file
         // -- otherwise verts is a table, use it as a model defintion
-        if (type_match(verts, "string")) {
-            auto obj = objloader(verts, false, false)
-            this.verts = obj.result
-        } else {
-            this.verts = verts
-        }
+        // if (type_match(verts, "string")) {
+        auto obj = objloader(verts, false, false)
+        this.verts = obj.result
+        // } else {
+        //     this.verts = verts
+        // }
 
         // -- if texture is a string, use it as a path to an image file
         // -- otherwise texture is already an image, so don't bother
-        if (type_match(texture, "string")) {
-            this.texture = love.graphics.newImage(texture)
-        } else {
-            this.texture = texture
-        }
+        // if (type_match(texture, "string")) {
+        this.texture = texture
+        // } else {
+        //     auto workingTexture = texture
+        // }
 
         // -- initialize my variables
         this.mesh = love.chai_gfx.newMesh(this.vertexFormat, this.verts, "triangles")
         this.mesh.setTexture(this.texture)
         this.matrix = matrix()
-        if (type_match(scale, 1.0)) { this.scale = [scale, scale, scale] }
-        else { this.scale = scale }
+        // if (type_match(scale, 1.0) || type_match(scale, 1)) { this.scale = [scale, scale, scale] }
+        // else { this.scale = scale }
+        this.scale = [scale, scale, scale]
         this.setTransform(translation, rotation, this.scale)
 
         return this
     }
     // -- populate model's normals in model's mesh automatically
-    // -- if true is passed in, { the normals are all flipped
+    // -- if true is passed in, the normals are all flipped
     def makeNormals(isFlipped) {
         for (var i=1; i < this.verts; i+=3) {
             if (isFlipped) {
@@ -133,7 +134,11 @@ class model {
 
     // -- move and rotate given two 3d vectors
     def setTransform(translation, rotation, scale) {
-        this.translation = translation
+        if (type_match(translation, true)) {
+            this.translation = [0,0,0]
+        } else {
+            this.translation = translation
+        }
         this.rotation = rotation
         this.scale = scale
         this.updateMatrix()
@@ -141,19 +146,19 @@ class model {
 
     // -- move given one 3d vector
     def setTranslation(tx,ty,tz) {
-        this.translation[1] = tx
-        this.translation[2] = ty
-        this.translation[3] = tz
+        this.translation[0] = tx
+        this.translation[1] = ty
+        this.translation[2] = tz
         this.updateMatrix()
     }
 
     // -- rotate given one 3d vector
     // -- using euler angles
     def setRotation(rx,ry,rz) {
-        this.rotation[1] = rx
-        this.rotation[2] = ry
-        this.rotation[3] = rz
-        this.rotation[4] = nil
+        this.rotation[0] = rx
+        this.rotation[1] = ry
+        this.rotation[2] = rz
+        this.rotation[3] = nil
         this.updateMatrix()
     }
 
@@ -162,28 +167,28 @@ class model {
         vec = g3d.vectors.normalize(x,y,z)
         angle = angle / 2
 
-        this.rotation[1] = vec[0] * sin(angle * 1.0)
-        this.rotation[2] = vec[1] * sin(angle * 1.0)
-        this.rotation[3] = vec[2] * sin(angle * 1.0)
-        this.rotation[4] = cos(angle * 1.0)
+        this.rotation[0] = vec[0] * sin(angle * 1.0)
+        this.rotation[1] = vec[1] * sin(angle * 1.0)
+        this.rotation[2] = vec[2] * sin(angle * 1.0)
+        this.rotation[3] = cos(angle * 1.0)
 
         this.updateMatrix()
     }
 
     // -- rotate given one quaternion
     def setQuaternionRotation(x,y,z,w) {
-        this.rotation[1] = x
-        this.rotation[2] = y
-        this.rotation[3] = z
-        this.rotation[4] = w
+        this.rotation[0] = x
+        this.rotation[1] = y
+        this.rotation[2] = z
+        this.rotation[3] = w
         this.updateMatrix()
     }
 
     // -- resize model's matrix based on a given 3d vector
     def setScale(sx,sy,sz) {
-        this.scale[1] = sx
-        this.scale[2] = sy || sx
-        this.scale[3] = sz || sx
+        this.scale[0] = sx
+        this.scale[1] = sy || sx
+        this.scale[2] = sz || sx
         this.updateMatrix()
     }
 
@@ -193,17 +198,17 @@ class model {
     }
 
     // -- draw the model
-    def draw(shader) {
+    def draw() {
         // auto shader = shader || this.shader
-        love.chai_gfx.setShader(shader)
-        shader.send("modelMatrix", this.matrix)
-        shader.send("viewMatrix", g3d.camera.viewMatrix)
-        shader.send("projectionMatrix", g3d.camera.projectionMatrix)
-        if (shader.hasUniform("isCanvasEnabled")) {
-            shader.send("isCanvasEnabled", love.chai_gfx.getCanvas() != nil)
-        }
+        love.chai_gfx.setShader(g3d.shader)
+        g3d.shader.send("modelMatrix", this.matrix.matrix)
+        g3d.shader.send("viewMatrix", g3d.camera.viewMatrix.matrix)
+        g3d.shader.send("projectionMatrix", g3d.camera.projectionMatrix.matrix)
+        // if (g3d.shader.hasUniform("isCanvasEnabled")) {
+        //     g3d.shader.send("isCanvasEnabled", love.chai_gfx.getCanvas() != nil)
+        // }
         love.chai_gfx.draw(this.mesh)
-        love.chai_gfx.setShader()
+        // love.chai_gfx.setShader()
     }
 
     // -- the fallback def if ffi was not loaded

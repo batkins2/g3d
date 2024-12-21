@@ -8,30 +8,111 @@ global earth
 global moon
 global background
 global timer = 0
+global firstDraw = true
+global secondDraw = true
+global drawCount = 0
 
 def load() {
+    // love.event.pause()
     g3d = grover3d()
-    earth = g3d.model.newModel("assets/sphere.obj", "assets/earth.png", [4,0,0], false, 1.0)
-    moon = g3d.model.newModel("assets/sphere.obj", "assets/moon.png", [4,5,0], false, 0.5)
-    background = g3d.model.newModel("assets/sphere.obj", "assets/starfield.png", false, false, 500)
+    // earth = g3d.model.newModel("assets/sphere.obj", "assets/earth.png", [4,0,0], false, 1.0)
+    // love.event.pause()
+    // moon = g3d.model.newModel("assets/sphere.obj", "assets/moon.png", [4,5,0], false, 0.5)
+    // background = g3d.model.newModel("assets/sphere.obj", "assets/starfield.png", false, false, 500)
 }
 
 def update(dt) {
     timer = timer + dt
-    moon.setTranslation(cos(timer*1.0)*5 + 4, sin(timer*1.0)*5, 0)
-    moon.setRotation(0, 0, timer - 3.14159265358979323846/2)
-    g3d.camera.firstPersonMovement(dt)
-    if (love.keyboard.isDown("escape")) {
-        love.event.push("quit")
-    }
+    // moon.setTranslation(cos(timer*1.0)*5 + 4, sin(timer*1.0)*5, 0)
+    // moon.setRotation(0, 0, timer - 3.14159265358979323846/2)
+    // g3d.camera.firstPersonMovement(dt)
+    // if (love.keyboard.isDown("escape")) {
+    //     love.event.push("quit")
+    // }
 }
 
 def draw() {
-    earth.draw()
-    moon.draw()
-    background.draw()
+    // love.event.pause()
+    // earth.draw()
+    // love.event.pause()
+    // if (!love.event.isrenderlocked()) {
+        // love.graphics.clear()
+        if (firstDraw) {
+            // love.event.pause()
+            g3d.shader = love.chai_gfx.newShader("g3d/g3d.vert")
+            // moon = g3d.model.newModel("assets/sphere.obj", "assets/moon.png", [4,5,0], false, 0.5)
+            // background = g3d.model.newModel("assets/sphere.obj", "assets/starfield.png", false, false, 500)
+            firstDraw = false
+
+        //     love.event.pause()
+        } else if (secondDraw) {
+            secondDraw = false
+        } else if (drawCount == 750) {
+
+            // love.event.pause()
+            // moon.draw()
+            // background.draw()
+            // love.chai_gfx.drawCanvas()
+            // love.event.pause()
+        // }
+            drawCount+=1
+        } else if (drawCount > 750) {
+            // love.chai_gfx.createCanvas()
+            earth = g3d.model.newModel("assets/sphere.obj", "assets/earth.png", [4,0,0], false, 1.0)
+            earth.draw()
+        } else {
+            drawCount+=1
+        }
 }
 
 def mousemoved(x,y, dx,dy) {
-    g3d.camera.firstPersonLook(dx,dy)
+    // g3d.camera.firstPersonLook(dx,dy)
+}
+
+def reset() {
+
+}
+
+def joystickpressed(a, b) {
+
+}
+
+def joystickreleased(a, b) {
+
+}
+
+def mousepressed(a, b ,c) {
+
+}
+
+def mousereleased(a, b, c) {
+
+}
+
+def keypressed(a, b) {
+
+}
+
+def keyreleased(a, b) {
+
+}
+
+def savestate() {
+
+}
+
+def loadstate(a) {
+
+}
+
+def cheatreset() {
+
+}
+
+def cheatset(a, b, c) {
+
+}
+
+def exit() {
+
 }
