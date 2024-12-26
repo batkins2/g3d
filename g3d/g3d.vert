@@ -9,7 +9,6 @@ uniform mat4 viewMatrix;       // handled by the camera
 uniform mat4 modelMatrix;      // models send their own model matrices when drawn
 uniform bool isCanvasEnabled;  // detect when this model is being rendered to a canvas
 
-// the vertex normal attribute must be defined, as it is custom unlike the other attributes
 attribute vec3 VertexNormal;
 
 // define some varying vectors that are useful for writing custom fragment shaders

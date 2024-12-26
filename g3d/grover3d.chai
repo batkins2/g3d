@@ -48,7 +48,8 @@
 class grover3d {
   def grover3d() {
     // -- the shader is what does the heavy lifting, displaying 3D meshes on your 2D monitor
-    // this.shader = love.chai_gfx.newShader("g3d/g3d.vert")
+    //love.chai_gfx.init()
+    //this.shader = love.chai_gfx.newShader("g3d/g3d.vert")
     require("g3d/vectors.chai")
     this.vectors = vectors()
     require("g3d/collisions.chai")

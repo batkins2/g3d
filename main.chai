@@ -15,7 +15,7 @@ global drawCount = 0
 def load() {
     // love.event.pause()
     g3d = grover3d()
-    // earth = g3d.model.newModel("assets/sphere.obj", "assets/earth.png", [4,0,0], false, 1.0)
+    //earth = g3d.model.newModel("assets/sphere.obj", "assets/earth.png", [4,0,0], false, 1.0)
     // love.event.pause()
     // moon = g3d.model.newModel("assets/sphere.obj", "assets/moon.png", [4,5,0], false, 0.5)
     // background = g3d.model.newModel("assets/sphere.obj", "assets/starfield.png", false, false, 500)
@@ -39,7 +39,9 @@ def draw() {
         // love.graphics.clear()
         if (firstDraw) {
             // love.event.pause()
+            
             g3d.shader = love.chai_gfx.newShader("g3d/g3d.vert")
+            earth = g3d.model.newModel("assets/sphere.obj", "assets/earth.png", [4,0,0], false, 1.0)
             // moon = g3d.model.newModel("assets/sphere.obj", "assets/moon.png", [4,5,0], false, 0.5)
             // background = g3d.model.newModel("assets/sphere.obj", "assets/starfield.png", false, false, 500)
             firstDraw = false
@@ -58,7 +60,9 @@ def draw() {
             drawCount+=1
         } else if (drawCount > 750) {
             // love.chai_gfx.createCanvas()
-            earth = g3d.model.newModel("assets/sphere.obj", "assets/earth.png", [4,0,0], false, 1.0)
+            
+            
+            
             earth.draw()
         } else {
             drawCount+=1

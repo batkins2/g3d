@@ -77,8 +77,11 @@ class model {
         // -- if verts is a string, use it as a path to a .obj file
         // -- otherwise verts is a table, use it as a model defintion
         // if (type_match(verts, "string")) {
+        love.window.showMessageBox("test")
         auto obj = objloader(verts, false, false)
+          love.window.showMessageBox("test")
         this.verts = obj.result
+          love.window.showMessageBox("test")
         // } else {
         //     this.verts = verts
         // }
@@ -87,19 +90,25 @@ class model {
         // -- otherwise texture is already an image, so don't bother
         // if (type_match(texture, "string")) {
         this.texture = texture
+          love.window.showMessageBox("test")
         // } else {
         //     auto workingTexture = texture
         // }
 
         // -- initialize my variables
         this.mesh = love.chai_gfx.newMesh(this.vertexFormat, this.verts, "triangles")
+          love.window.showMessageBox("test")
         this.mesh.setTexture(this.texture)
+          love.window.showMessageBox("test")
         this.matrix = matrix()
+          love.window.showMessageBox("test")
         // if (type_match(scale, 1.0) || type_match(scale, 1)) { this.scale = [scale, scale, scale] }
         // else { this.scale = scale }
         this.scale = [scale, scale, scale]
+          love.window.showMessageBox("test")
         this.setTransform(translation, rotation, this.scale)
-
+          love.window.showMessageBox("test")
+        // this.draw()
         return this
     }
     // -- populate model's normals in model's mesh automatically
