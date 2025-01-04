@@ -17,14 +17,14 @@ auto fpsController = [
 
 class camera {
     def camera() {
-        this.pi = 3.14159265358979323846
-        this.fov = this.pi/2
-        this.nearClip = 0.01
-        this.farClip = 1000
-        this.aspectRatio = love.graphics.getWidth()/love.graphics.getHeight()
-        this.position = [0,0,0]
-        this.target = [1,0,0]
-        this.up = [0,0,1]
+        this.pi = 3.14159265358979323846f
+        this.fov = 90.0f
+        this.nearClip = 0.01f
+        this.farClip = 1000.0f
+        this.aspectRatio = 1.33f
+        this.position = [0.0f,0.0f,0.0f]
+        this.target = [1.0f,0.0f,0.0f]
+        this.up = [0.0f,0.0f,1.0f]
 
         this.viewMatrix = matrix()
         this.projectionMatrix = matrix()
@@ -93,12 +93,12 @@ class camera {
 
     //-- recreate the camera's view matrix from its current values
     def updateViewMatrix(vectors) {
-        this.viewMatrix.setViewMatrix(this.position, this.target, this.up, vectors)
+        this.viewMatrix.setViewMatrix(this.position, this.target, this.up)
     }
 
     //-- recreate the camera's projection matrix from its current values
     def updateProjectionMatrix() {
-        this.projectionMatrix.setProjectionMatrix(this.fov, this.nearClip, this.farClip, this.aspectRatio)
+        this.projectionMatrix.setProjectionMatrix(this.fov, this.aspectRatio, this.nearClip, this.farClip)
     }
 
     //-- recreate the camera's orthographic projection matrix from its current values

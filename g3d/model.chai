@@ -104,7 +104,7 @@ class model {
           love.window.showMessageBox("test")
         // if (type_match(scale, 1.0) || type_match(scale, 1)) { this.scale = [scale, scale, scale] }
         // else { this.scale = scale }
-        this.scale = [scale, scale, scale]
+        this.scale = scale
           love.window.showMessageBox("test")
         this.setTransform(translation, rotation, this.scale)
           love.window.showMessageBox("test")
@@ -144,12 +144,12 @@ class model {
     // -- move and rotate given two 3d vectors
     def setTransform(translation, rotation, scale) {
         if (type_match(translation, true)) {
-            this.translation = [0,0,0]
+            this.translation = [0.0f,0.0f,0.0f]
         } else {
             this.translation = translation
         }
         this.rotation = rotation
-        this.scale = scale
+        // this.scale = scale
         this.updateMatrix()
     }
 
@@ -167,7 +167,6 @@ class model {
         this.rotation[0] = rx
         this.rotation[1] = ry
         this.rotation[2] = rz
-        this.rotation[3] = nil
         this.updateMatrix()
     }
 
@@ -176,9 +175,9 @@ class model {
         vec = g3d.vectors.normalize(x,y,z)
         angle = angle / 2
 
-        this.rotation[0] = vec[0] * sin(angle * 1.0)
-        this.rotation[1] = vec[1] * sin(angle * 1.0)
-        this.rotation[2] = vec[2] * sin(angle * 1.0)
+        this.rotation[0] = vec[0] * sin(angle * 1.0f)
+        this.rotation[1] = vec[1] * sin(angle * 1.0f)
+        this.rotation[2] = vec[2] * sin(angle * 1.0f)
         this.rotation[3] = cos(angle * 1.0)
 
         this.updateMatrix()
@@ -204,15 +203,44 @@ class model {
     // -- update the model's transformation matrix
     def updateMatrix() {
         this.matrix.setTransformationMatrix(this.translation, this.rotation, this.scale)
+        this.translation = [0.0f,0.0f,0.0f]
+        this.rotation = [0.0f,0.0f,0.0f]
+        this.scale = [1.0f,1.0f,1.0f]
     }
 
     // -- draw the model
     def draw() {
+        // [1.0, 0.0, 0.0, 0.0,
+        //  0.0, 1.0, 0.0, 0.0,
+        //  0.0, 0.0, 1.0, 0.0, 
+        //  4.0, 0.0, 0.0, 1.0]
+        // [0.0, 0.0, -1.0, 0.0,
+        //  -1.0, 1.0, 0.0, 0.0, 
+        //  0.0, 1.0, 0.0, 0.0, 
+        //  0.0, 0.0, 0.0, 1.0]
+        //  [0.75, 0.0, 0.0, 0.0,
+        //   0.0, 1.0, 0.0, 0.0, 
+        //   0.0, 0.0, -1.0, -1.0, 
+        //   0.0, 0.0, -0.02, 0.0]
         // auto shader = shader || this.shader
         love.chai_gfx.setShader(g3d.shader)
         g3d.shader.send("modelMatrix", this.matrix.matrix)
+//         g3d.shader.send("modelMatrix", [
+//     -100.0, 0.0, 0.0, 0.0,
+//     0.0, -100.0, 0.0, 0.0,
+//     0.0, 0.0, -100.0, -40.0,
+//     0.0, 0.0, 0.0, 1.0
+// ])
         g3d.shader.send("viewMatrix", g3d.camera.viewMatrix.matrix)
+        // g3d.shader.send("viewMatrix", [1.0, 0.0, 0.0, 0.0,
+        //   0.0, 1.0, 0.0, 0.0,
+        //   0.0, 0.0, 1.0, 0.0,
+        //   0.0, 0.0, 0.0, 1.0])
         g3d.shader.send("projectionMatrix", g3d.camera.projectionMatrix.matrix)
+    //     g3d.shader.send("projectionMatrix", [0.75, 0.0, 0.0, 0.0,
+    // 0.0, 1.0, 0.0, 0.0,
+    // 0.0, 0.0, -1.002, -0.2002,
+    // 0.0, 0.0, -1.0, 0.0])
         // if (g3d.shader.hasUniform("isCanvasEnabled")) {
         //     g3d.shader.send("isCanvasEnabled", love.chai_gfx.getCanvas() != nil)
         // }
