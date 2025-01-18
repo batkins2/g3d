@@ -44,8 +44,8 @@ class matrix {
     // -- (things farther away appear smaller)
     // -- all arguments are scalars aka normal numbers
     // -- aspectRatio is defined as window width divided by window height
-    def setProjectionMatrix(fov, near, far, aspectRatio) {
-        this.matrix = love.chai_matrices.setProjectionMatrix(fov, near, far, aspectRatio)
+    def setProjectionMatrix(fov, aspectRatio, near, far) {
+        this.matrix = love.chai_matrices.setProjectionMatrix(fov, aspectRatio, near, far)
     }
 
     // -- returns an orthographic projection matrix
@@ -59,6 +59,16 @@ class matrix {
     // -- returns a view matrix
     // -- eye, target, and up are all 3d vectors
     def setViewMatrix(eye, target, up) {
+        // love.window.showMessageBox(to_string(eye[0]))
+        // love.window.showMessageBox(to_string(eye[1]))
+        // love.window.showMessageBox(to_string(eye[2]))
+        love.window.showMessageBox(to_string(target[0]))
+        love.window.showMessageBox(to_string(target[1]))
+        love.window.showMessageBox(to_string(target[2]))
+        // love.window.showMessageBox(to_string(up[0]))
+        // love.window.showMessageBox(to_string(up[1]))
+        // love.window.showMessageBox(to_string(up[2]))
+
         this.matrix = love.chai_matrices.setViewMatrix(eye, target, up)
     }
 }

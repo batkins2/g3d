@@ -54,12 +54,12 @@ class grover3d {
     this.vectors = vectors()
     require("g3d/collisions.chai")
     this.collisions = collisions()
-    require("g3d/model.chai")
-    this.model = model()
+    require("g3d/matrices.chai")
+   
     require("g3d/camera.chai")
     this.camera = camera()
     this.camera.updateProjectionMatrix()
-    this.camera.updateViewMatrix(this.vectors)
+    this.camera.updateViewMatrix()
     // -- so that far polygons don't overlap near polygons
     // love.chai_gfx.setDepthMode("lequal", true)
 

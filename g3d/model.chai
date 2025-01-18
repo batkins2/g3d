@@ -96,20 +96,23 @@ class model {
         // }
 
         // -- initialize my variables
-        this.mesh = love.chai_gfx.newMesh(this.vertexFormat, this.verts, "triangles")
+        this.mesh = love.chai_gfx.newMeshFromFile(this.vertexFormat, verts, "triangles")
           love.window.showMessageBox("test")
-        this.mesh.setTexture(this.texture)
+        if (this.texture != "") {
+            this.mesh.setTexture(this.texture)
+        }
+        auto cameraParams = this.mesh.getCameraParams()
+        g3d.camera.setParams(cameraParams)
           love.window.showMessageBox("test")
         this.matrix = matrix()
           love.window.showMessageBox("test")
         // if (type_match(scale, 1.0) || type_match(scale, 1)) { this.scale = [scale, scale, scale] }
         // else { this.scale = scale }
-        this.scale = scale
+        // this.scale = scale
           love.window.showMessageBox("test")
-        this.setTransform(translation, rotation, this.scale)
+        this.setTransform(translation, rotation, scale)
           love.window.showMessageBox("test")
         // this.draw()
-        return this
     }
     // -- populate model's normals in model's mesh automatically
     // -- if true is passed in, the normals are all flipped
@@ -149,7 +152,7 @@ class model {
             this.translation = translation
         }
         this.rotation = rotation
-        // this.scale = scale
+        this.scale = scale
         this.updateMatrix()
     }
 
@@ -205,7 +208,7 @@ class model {
         this.matrix.setTransformationMatrix(this.translation, this.rotation, this.scale)
         this.translation = [0.0f,0.0f,0.0f]
         this.rotation = [0.0f,0.0f,0.0f]
-        this.scale = [1.0f,1.0f,1.0f]
+        // this.scale = [1.0f,1.0f,1.0f]
     }
 
     // -- draw the model
@@ -223,20 +226,20 @@ class model {
         //   0.0, 0.0, -1.0, -1.0, 
         //   0.0, 0.0, -0.02, 0.0]
         // auto shader = shader || this.shader
-        love.chai_gfx.setShader(g3d.shader)
-        g3d.shader.send("modelMatrix", this.matrix.matrix)
+        // love.chai_gfx.setShader(g3d.shader)
+        // g3d.shader.send("modelMatrix", this.matrix.matrix)
 //         g3d.shader.send("modelMatrix", [
 //     -100.0, 0.0, 0.0, 0.0,
 //     0.0, -100.0, 0.0, 0.0,
 //     0.0, 0.0, -100.0, -40.0,
 //     0.0, 0.0, 0.0, 1.0
 // ])
-        g3d.shader.send("viewMatrix", g3d.camera.viewMatrix.matrix)
+        // g3d.shader.send("viewMatrix", g3d.camera.viewMatrix.matrix)
         // g3d.shader.send("viewMatrix", [1.0, 0.0, 0.0, 0.0,
         //   0.0, 1.0, 0.0, 0.0,
         //   0.0, 0.0, 1.0, 0.0,
         //   0.0, 0.0, 0.0, 1.0])
-        g3d.shader.send("projectionMatrix", g3d.camera.projectionMatrix.matrix)
+        // g3d.shader.send("projectionMatrix", g3d.camera.projectionMatrix.matrix)
     //     g3d.shader.send("projectionMatrix", [0.75, 0.0, 0.0, 0.0,
     // 0.0, 1.0, 0.0, 0.0,
     // 0.0, 0.0, -1.002, -0.2002,

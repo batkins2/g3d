@@ -9,16 +9,15 @@
 //-- define the camera singleton
 // ----------------------------------------------------------------------------------------------------
 
-//-- private variables used only for the first person camera functions
-auto fpsController = [
-    "direction": 0,
-    "pitch": 0
-]
-
 class camera {
     def camera() {
+        this.fpsController = [
+            "direction": 0.0f,
+            "pitch": 0.0f
+        ]
+
         this.pi = 3.14159265358979323846f
-        this.fov = 90.0f
+        this.fov = 600.0f/800.0f
         this.nearClip = 0.01f
         this.farClip = 1000.0f
         this.aspectRatio = 1.33f
@@ -29,9 +28,36 @@ class camera {
         this.viewMatrix = matrix()
         this.projectionMatrix = matrix()
     }
+    def setParams(cameraParams) {
+        this.fov = cameraParams["fov"][0]
+        this.nearClip = cameraParams["near"][0]
+        this.farClip = cameraParams["far"][0]
+        this.aspectRatio = cameraParams["aspectRatio"][0]
+        love.window.showMessageBox(to_string(this.fov) + " " + to_string(this.nearClip) + " " + to_string(this.farClip) + " " + to_string(this.aspectRatio))
+        this.position[0] = cameraParams["position"][0]
+        this.position[1] = cameraParams["position"][1]
+        this.position[2] = cameraParams["position"][2]
+        this.target[0] = cameraParams["target"][0]
+        this.target[1] = cameraParams["target"][1]
+        this.target[2] = cameraParams["target"][2]
+        this.up[0] = cameraParams["up"][0]
+        this.up[1] = cameraParams["up"][1]
+        this.up[2] = cameraParams["up"][2]
+
+        auto d = this.getLookVector()
+        this.fpsController["direction"] = this.pi/2 - atan2(d[2], d[0])
+        this.fpsController["pitch"] = atan2(d[1], sqrt(pow(d[0]*1.0f,2.0f) + pow(d[2]*1.0f,2.0f) * 1.0f))
+        love.window.showMessageBox("CAMERA:")
+        love.window.showMessageBox(to_string(this.fpsController["direction"]) + " " + to_string(this.fpsController["pitch"]))
+        love.window.showMessageBox(to_string(this.position[0]) + " " + to_string(this.position[1]) + " " + to_string(this.position[2]))
+        love.window.showMessageBox(to_string(this.target[0]) + " " + to_string(this.target[1]) + " " + to_string(this.target[2]))
+        love.window.showMessageBox(to_string(this.up[0]) + " " + to_string(this.up[1]) + " " + to_string(this.up[2]))        
+        this.updateViewMatrix()
+        this.updateProjectionMatrix()
+    }
     //-- read-only variables, can't be set by the } user
     def getDirectionPitch() {
-        return [fpsController.direction, fpsController.pitch]
+        return [this.fpsController["direction"], this.fpsController["pitch"]]
     }
 
     //-- convenient def to return the camera's normalized look vector
@@ -39,7 +65,7 @@ class camera {
         auto vx = this.target[0] - this.position[0]
         auto vy = this.target[1] - this.position[1]
         auto vz = this.target[2] - this.position[2]
-        auto length = sqrt(pow(vx*1.0,2.0) + pow(vy*1.0,2.0) + pow(vz*1.0,2.0) * 1.0)
+        auto length = sqrt(pow(vx*1.0f,2.0f) + pow(vy*1.0f,2.0f) + pow(vz*1.0f,2.0f) * 1.0f)
 
         //-- make sure not to divide by 0
         if (length > 0) {
@@ -57,10 +83,10 @@ class camera {
         this.target[1] = yAt
         this.target[2] = zAt
 
-        //-- update the fpsController's direction and pitch based on lookAt
+        //-- update the this.fpsController's direction and pitch based on lookAt
         auto d = this.getLookVector()
-        fpsController.direction = this.pi/2 - atan2(d[2], d[0])
-        fpsController.pitch = atan2(d[1], sqrt(pow(d[0]*1.0,2.0) + pow(d[2]*1.0,2.0) * 1.0))
+        this.fpsController["direction"] = this.pi/2 - atan2(d[2], d[0])
+        this.fpsController["pitch"] = atan2(d[1], sqrt(pow(d[0]*1.0,2.0) + pow(d[2]*1.0,2.0) * 1.0))
 
         //-- update the camera in the shader
         this.updateViewMatrix()
@@ -68,31 +94,32 @@ class camera {
 
     //-- move and rotate the camera, given a point and a direction and a pitch (vertical direction) {
     def lookInDirection(x,y,z, directionTowards,pitchTowards) {
-        this.position[0] = x || this.position[0]
-        this.position[1] = y || this.position[1]
-        this.position[2] = z || this.position[2]
+        this.position[0] = x
+        this.position[1] = y 
+        this.position[2] = z
 
-        fpsController.direction = directionTowards || fpsController.direction
-        fpsController.pitch = pitchTowards || fpsController.pitch
+        this.fpsController["direction"] = directionTowards
+        this.fpsController["pitch"] = pitchTowards
 
         //-- turn the cos of the pitch into a sign value, either 1, -1, || 0
-        auto sign = cos(fpsController.pitch*1.0)
-        sign = (sign > 0 && 1) || (sign < 0 && -1) || 0
+        auto sign = cos(this.fpsController["pitch"]*1.0f)
+        if (sign > 1.0f) { sign = 1.0f }
+        else if (sign < -1.0) { sign = -1.0f }
 
         //-- don't let cosPitch ever hit 0, because weird camera glitches will happen
-        auto cosPitch = sign*max(abs(cos(fpsController.pitch*1.0)), 0.00001)
+        auto cosPitch = sign*max(abs(cos(this.fpsController["pitch"]*1.0f)), 0.00001f)
 
         //-- convert the direction and pitch into a target point
-        this.target[0] = this.position[0]+cos(fpsController.direction*1.0)*cosPitch
-        this.target[1] = this.position[1]+sin(fpsController.direction*1.0)*cosPitch
-        this.target[2] = this.position[2]+sin(fpsController.pitch*1.0)
+        this.target[0] = this.position[0]+cos(this.fpsController["direction"]*1.0f)*cosPitch
+        this.target[1] = this.position[1]+sin(this.fpsController["direction"]*1.0f)*cosPitch
+        this.target[2] = this.position[2]+sin(this.fpsController["pitch"]*1.0f)
 
         //-- update the camera in the shader
         this.updateViewMatrix()
     }
 
     //-- recreate the camera's view matrix from its current values
-    def updateViewMatrix(vectors) {
+    def updateViewMatrix() {
         this.viewMatrix.setViewMatrix(this.position, this.target, this.up)
     }
 
@@ -110,19 +137,19 @@ class camera {
     //-- put this auto def in your love.update to use, passing in dt
     def firstPersonMovement(dt) {
         //-- collect inputs
-        auto moveX = 0
-        auto moveY = 0
+        auto moveX = 0.0f
+        auto moveY = 0.0f
         auto cameraMoved = false
-        auto speed = 9
-        if (love.keyboard.isDown == "w") { moveX = moveX + 1 }
-        if (love.keyboard.isDown == "a") { moveY = moveY + 1 }
-        if (love.keyboard.isDown == "s") { moveX = moveX - 1 }
-        if (love.keyboard.isDown == "d") { moveY = moveY - 1 }
-        if (love.keyboard.isDown == "space") {
+        auto speed = 0.5f
+        if (love.keyboard.isDown("w")) { moveX = moveX + 1.0f }
+        if (love.keyboard.isDown("a")) { moveY = moveY + 1.0f }
+        if (love.keyboard.isDown("s")) { moveX = moveX - 1.0f }
+        if (love.keyboard.isDown("d")) { moveY = moveY - 1.0f }
+        if (love.keyboard.isDown("space")) {
             this.position[2] = this.position[2] + speed*dt
             cameraMoved = true
         }
-        if (love.keyboard.isDown == "lshift") {
+        if (love.keyboard.isDown("lshift")) {
             this.position[2] = this.position[2] - speed*dt
             cameraMoved = true
         }
@@ -131,27 +158,27 @@ class camera {
         //-- also to make the player not move faster in diagonal directions
         if (moveX != 0 || moveY != 0) {
             auto angle = atan2(moveY, moveX)
-            this.position[0] = this.position[0] + cos(fpsController.direction + angle * 1.0) * speed * dt
-            this.position[1] = this.position[1] + sin(fpsController.direction + angle * 1.0) * speed * dt
+            this.position[0] = this.position[0] + cos(this.fpsController["direction"] + angle * 1.0f) * speed * dt
+            this.position[1] = this.position[1] + sin(this.fpsController["direction"] + angle * 1.0f) * speed * dt
             cameraMoved = true
         }
 
         //-- update the camera's in the shader
         //-- only if the camera moved, for a slight performance benefit
         if (cameraMoved) {
-            this.lookInDirection()
+            this.lookInDirection(this.position[0],this.position[1],this.position[2], this.fpsController["direction"],this.fpsController["pitch"])
         }
     }
 
     //-- use this in your love.mousemoved function, passing in the movements
     def firstPersonLook(dx,dy) {
         //-- capture the mouse
-        love.mouse.setRelativeMode(true)
+        // love.mouse.setRelativeMode(true)
 
-        auto sensitivity = 1/300
-        fpsController.direction = fpsController.direction - dx*sensitivity
-        fpsController.pitch = max(min(fpsController.pitch - dy*sensitivity, this.pi*0.5), this.pi*-0.5)
+        auto sensitivity = 1.0f/3000.0f
+        this.fpsController["direction"] = this.fpsController["direction"] - dx*sensitivity
+        this.fpsController["pitch"] = max(min(this.fpsController["pitch"] - dy*sensitivity, this.pi*0.5f), this.pi*-0.5f)
 
-        this.lookInDirection(this.position[0],this.position[1],this.position[2], fpsController.direction,fpsController.pitch)
+        this.lookInDirection(this.position[0],this.position[1],this.position[2], this.fpsController["direction"],this.fpsController["pitch"])
     }
 }
