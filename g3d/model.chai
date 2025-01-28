@@ -21,6 +21,8 @@ class model {
             ["VertexPosition", "float", "3"],
             ["VertexTexCoord", "float", "2"],
             ["VertexNormal", "float", "3"],
+            ["VertexWeight", "float", "4"],            
+            ["VertexJoint", "float", "4"],
             ["VertexColor", "byte", "4"]
         ]
         // this.shader = g3d.shader
@@ -211,6 +213,10 @@ class model {
         // this.scale = [1.0f,1.0f,1.0f]
     }
 
+    def playAnimation(name, loop) {
+        this.mesh.playAnimation(name, loop)
+    }
+
     // -- draw the model
     def draw() {
         // [1.0, 0.0, 0.0, 0.0,
@@ -234,7 +240,7 @@ class model {
 //     0.0, 0.0, -100.0, -40.0,
 //     0.0, 0.0, 0.0, 1.0
 // ])
-        // g3d.shader.send("viewMatrix", g3d.camera.viewMatrix.matrix)
+        g3d.shader.send("viewMatrix", g3d.camera.viewMatrix.matrix)
         // g3d.shader.send("viewMatrix", [1.0, 0.0, 0.0, 0.0,
         //   0.0, 1.0, 0.0, 0.0,
         //   0.0, 0.0, 1.0, 0.0,
