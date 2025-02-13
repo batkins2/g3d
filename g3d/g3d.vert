@@ -11,7 +11,7 @@ uniform bool isCanvasEnabled;  // detect when this model is being rendered to a 
 
 uniform mat4 jointMatrix[100]; // array of joint matrices
 uniform int flip;               // flip the y-axis for canvas rendering
-uniform int joints[100];        // array of joint indices
+// uniform int joints[100];        // array of joint indices
 uniform int jointCount;         // number of joints
 
 uniform vec3 lightDirection; // Direction of the directional light
@@ -40,20 +40,20 @@ vec4 position(mat4 transformProjection, vec4 vertexPosition) {
     vec4 skinnedPosition = vec4(0.0);
     vec3 skinnedNormal = vec3(0.0);
     bool hasWeights = false;
-    
-    if (jointCount > 0) {        
+
+    if (jointCount > 0) {
         hasWeights = true;
         // Apply skinning transformation using joint matrices and weights
         for (int i = 0; i < 4; i++) {
             int jointIndex = int(VertexJoint[i]);
-            int joint = joints[jointIndex];
+            // int joint = joints[jointIndex];
             float weight = VertexWeight[i];
             mat4 jointMat = jointMatrix[jointIndex];
             skinnedPosition += weight * (jointMat * vec4(vertexPosition.xyz, 1.0));
-            skinnedNormal += weight * (mat3(jointMat) * VertexNormal);            
+            skinnedNormal += weight * (mat3(jointMat) * VertexNormal);
         }
-    } 
-    
+    }
+
     if (!hasWeights) {
         // If no weights are present, use the original vertex position and normal
         skinnedPosition = vec4(vertexPosition.xyz, 1.0);
@@ -84,7 +84,7 @@ vec4 position(mat4 transformProjection, vec4 vertexPosition) {
 
     // Transform the vertex position to light space
     fragPosLightSpace = lightSpaceMatrix * transformedPosition;
-    
+
     if (flip == 1) {
         // Flip the y-axis for canvas rendering
         screenPosition.y = -screenPosition.y;
