@@ -46,7 +46,7 @@ vec4 position(mat4 transformProjection, vec4 vertexPosition) {
         // Apply skinning transformation using joint matrices and weights
         for (int i = 0; i < 4; i++) {
             int jointIndex = int(VertexJoint[i]);
-            int joint = joints[0];
+            int joint = joints[jointIndex];
             float weight = VertexWeight[i];
             mat4 jointMat = jointMatrix[jointIndex];
             skinnedPosition += weight * (jointMat * vec4(vertexPosition.xyz, 1.0));

@@ -4,9 +4,9 @@
 
 require("g3d/grover3d.chai")
 global g3d
-global earth
-global moon
-global background
+global stage
+global knight
+global scene
 global timer = 0
 global firstDraw = true
 global secondDraw = true
@@ -31,6 +31,7 @@ def update(dt) {
         // earth.setRotation(0.0f, 90.0f, 0.0f)
         
         // earth.setTranslation(0, earth.translation[1] + 0.5f * dt, 0)
+        stage.setTranslation(0, stage.translation[1] + 0.5f * dt, 0)
     }
     g3d.camera.firstPersonMovement(dt)
     // if (love.keyboard.isDown("escape")) {
@@ -42,12 +43,20 @@ def draw() {
     
     if (!firstDraw) {    
         
-        love.chai_gfx.setShader(g3d.shader)        
-        earth.draw()
+        // love.chai_gfx.setShader(g3d.shader)        
+        // scene.draw()
+        // knight.draw()
         // background.draw()
         
         // moon.draw()
-        love.chai_gfx.drawScene()
+        // love.chai_gfx.drawScene()
+        g3d.shader.send("viewMatrix", g3d.camera.viewMatrix.matrix)
+        love.window.showMessageBox("test")
+        // scene.setMatrix(knight.matrix.matrix, 1)
+        // love.window.showMessageBox("test")
+        // scene.setMatrix(stage.matrix.matrix, 1)
+        scene.draw()
+        love.window.showMessageBox("test")
     }
     if (firstDraw) {
         // love.event.pause()
@@ -56,15 +65,31 @@ def draw() {
         // earth = g3d.model.newModel("assets/knight2.obj", "assets/knight2.png", [4.0f,0.0f,0.0f], [5200.0f,0.0f,0.0f], [0.0125f,0.0125f,0.0125f])
         // earth = model()
         // earth.newModel("assets/knight3.glb", "assets/knight.png", [5.0f,0.0f,-1.0f], [10000.0f,0.0f,0.0f], [1.0f,1.0f,1.0f])
-        earth = model()
-        earth.newModel("assets/testscene2.glb", "", [0.0f,0.0f,0.0f], [0.0f,0.0f,0.0f], [1.0f,1.0f,1.0f])
+        stage = model()
+        // stage.newModel("assets/testscene8.glb", "", [0.0f,0.0f,0.0f], [0.0f,0.0f,0.0f], [1.0f,1.0f,1.0f])
+        stage.newModel("assets/finger3.glb", "", [0.0f,0.0f,0.0f], [0.0f,0.0f,0.0f], [1.0f,1.0f,1.0f])
+        stage.initCamera()
+        love.window.showMessageBox("test")
+        knight = model()
+        // knight.newModel("assets/knight_walk.glb", "", [0.0f,1.3f,10.0f], [0.0f,0.0f,0.0f], [5.0f,5.0f,5.0f])
+        scene = love.chai_gfx.newScene()
+        love.window.showMessageBox("test")
+        scene.addMesh(stage.mesh)
+        love.window.showMessageBox("test")
+        // scene.addMesh(knight.mesh)
+        // love.window.showMessageBox("test")
+        scene.setShader(g3d.shader)
+        love.window.showMessageBox("test")
+        stage.playAnimation("Sample_cloud_fingerAction", true)
+
         // background = model()
         // background.newModel("assets/cube.glb", "assets/circuit.png", [0.0f,0.0f,0.0f], [0.0f,0.0f,0.0f], [500.0f,500.0f,500.0f])
         // moon = model()
         // moon.newModel("assets/plane.glb", "assets/grass.png", [0.0f,0.0f,-1.0f], [5000.0f,0.0f,0.0f], [500.0f,500.0f,500.0f])
         // moon = g3d.model.newModel("assets/sphere.obj", "assets/moon.png", [4,5,0], false, 0.5)
         // background = g3d.model.newModel("assets/sphere.obj", "assets/starfield.png", false, false, 500)
-        earth.playAnimation("PlayerTestAnim", true)
+        // knight.playAnimation("Action.002", true)
+        love.window.showMessageBox("test")
         firstDraw = false
 
     //     love.event.pause()
