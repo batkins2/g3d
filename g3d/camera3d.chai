@@ -9,8 +9,8 @@
 //-- define the camera singleton
 // ----------------------------------------------------------------------------------------------------
 
-class camera {
-    def camera() {
+class camera3d {
+    def camera3d() {
         this.fpsController = [
             "direction": 0.0f,
             "pitch": 0.0f

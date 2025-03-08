@@ -50,14 +50,14 @@ class grover3d {
     // -- the shader is what does the heavy lifting, displaying 3D meshes on your 2D monitor
     //love.chai_gfx.init()
     //this.shader = love.chai_gfx.newShader("g3d/g3d.vert")
-    require("g3d/vectors.chai")
+    require(mod_root+"g3d/vectors.chai")
     this.vectors = vectors()
-    require("g3d/collisions.chai")
+    require(mod_root+"g3d/collisions.chai")
     this.collisions = collisions()
-    require("g3d/matrices.chai")
+    require(mod_root+"g3d/matrices.chai")
    
-    require("g3d/camera.chai")
-    this.camera = camera()
+    require(mod_root+"g3d/camera3d.chai")
+    this.camera = camera3d()
     this.camera.updateProjectionMatrix()
     this.camera.updateViewMatrix()
     // -- so that far polygons don't overlap near polygons

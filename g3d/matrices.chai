@@ -37,7 +37,7 @@ class matrix {
     // -- returns a transformation matrix
     // -- translation, rotation, and scale are all 3d vectors
     def setTransformationMatrix(translation, rotation, scale) {
-       this.matrix = love.chai_matrices.setTransformationMatrix(translation, rotation, scale, this.matrix)
+       this.matrix = love.chai_matrices.setTransformationMatrix(translation, rotation, scale, [1.0f,0.0f,0.0f,0.0f,0.0f,1.0f,0.0f,0.0f,0.0f,0.0f,1.0f,0.0f,0.0f,0.0f,0.0f,1.0f])
     }
 
     // -- returns a perspective projection matrix

@@ -2,6 +2,7 @@
 // -- september 2021
 // -- MIT license
 
+global mod_root = ""
 require("g3d/grover3d.chai")
 global g3d
 global stage
