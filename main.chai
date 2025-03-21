@@ -31,6 +31,7 @@ def update(dt) {
 def draw() {
     
     if (!firstDraw) {    
+        scene.setShader(g3d.shader)
         
         g3d.shader.send("viewMatrix", g3d.camera.viewMatrix.matrix)
        

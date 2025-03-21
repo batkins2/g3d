@@ -102,7 +102,8 @@ class model {
         // }
 
         // -- initialize my variables
-        this.mesh = love.chai_gfx.newMeshFromFile(this.vertexFormat, verts, "triangles")
+        this.mesh = love.chai_mesh.newMesh()
+        this.mesh.loadMeshFromFile(this.vertexFormat, verts, "triangles")
           love.window.showMessageBox("test")
         if (this.texture != "") {
             this.mesh.setTexture(this.texture)
@@ -151,7 +152,7 @@ class model {
             vn[8] = n[2]
         }
 
-        this.mesh = love.chai_gfx.newMesh(this.vertexFormat, this.verts, "triangles")
+        this.mesh = love.chai_mesh.newMesh(this.vertexFormat, this.verts, "triangles")
         this.mesh.setTexture(this.texture)
     }
 
@@ -300,5 +301,13 @@ class model {
 
     def capsuleIntersection(tip_x, tip_y, tip_z, base_x, base_y, base_z, radius) {
         return g3d.collisions.capsuleIntersection(this.verts, this, tip_x, tip_y, tip_z, base_x, base_y, base_z, radius)
+    }
+
+    def reloadMesh() {
+        this.mesh.reloadMesh()
+    }
+
+    def destroy() {
+        this.mesh.destroy()
     }
 }
