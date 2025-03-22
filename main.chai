@@ -45,22 +45,22 @@ def draw() {
         stage.newModel("assets/testscene7.glb", "", [0.0f,0.0f,0.0f], [0.0f,0.0f,0.0f], [1.0f,1.0f,1.0f])
         // stage.newModel("assets/finger3.glb", "", [0.0f,0.0f,0.0f], [0.0f,0.0f,0.0f], [1.0f,1.0f,1.0f])
         stage.initCamera()
-        love.window.showMessageBox("test")
+        // love.window.showMessageBox("test")
         knight = model()
         knight.newModel("assets/knight_walk.glb", "", [0.0f,1.3f,10.0f], [0.0f,0.0f,0.0f], [1.0f,1.0f,1.0f])
         scene = love.chai_gfx.newScene()
-        love.window.showMessageBox("test")
+        // love.window.showMessageBox("test")
         scene.addMesh(stage.mesh)
-        love.window.showMessageBox("test")
+        // love.window.showMessageBox("test")
         scene.addMesh(knight.mesh)
         // love.window.showMessageBox("test")
         scene.setShader(g3d.shader)
-        love.window.showMessageBox("test")
+        // love.window.showMessageBox("test")
         // stage.playAnimation("Sample_cloud_fingerAction", true)
 
         knight.playAnimation("Action.002", true)
         // knight.playAnimation("META-Cloud_Human.002Action", true)
-        love.window.showMessageBox("test")
+        // love.window.showMessageBox("test")
         firstDraw = false
     } 
 }

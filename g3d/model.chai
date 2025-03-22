@@ -96,7 +96,7 @@ class model {
         // -- otherwise texture is already an image, so don't bother
         // if (type_match(texture, "string")) {
         this.texture = texture
-          love.window.showMessageBox("test")
+        //   love.window.showMessageBox("test")
         // } else {
         //     auto workingTexture = texture
         // }
@@ -104,20 +104,20 @@ class model {
         // -- initialize my variables
         this.mesh = love.chai_mesh.newMesh()
         this.mesh.loadMeshFromFile(this.vertexFormat, verts, "triangles")
-          love.window.showMessageBox("test")
+        //   love.window.showMessageBox("test")
         if (this.texture != "") {
             this.mesh.setTexture(this.texture)
         }
-          love.window.showMessageBox("test")
+        //   love.window.showMessageBox("test")
         require(mod_root+"g3d/matrices.chai")
         this.matrix = matrix()
-          love.window.showMessageBox("test")
+        //   love.window.showMessageBox("test")
         // if (type_match(scale, 1.0) || type_match(scale, 1)) { this.scale = [scale, scale, scale] }
         // else { this.scale = scale }
         // this.scale = scale
-          love.window.showMessageBox("test")
+        //   love.window.showMessageBox("test")
         this.setTransform(translation, rotation, scale)
-          love.window.showMessageBox("test")
+        //   love.window.showMessageBox("test")
         // this.draw()
     }
 
@@ -166,7 +166,7 @@ class model {
             }
             this.rotation = rotation
             this.scale = scale
-            love.window.showMessageBox("test2")
+            // love.window.showMessageBox("test2")
             this.updateMatrix()
         }
     }
