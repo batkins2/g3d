@@ -52,8 +52,8 @@ class matrix {
     // -- (things farther away are the same size as things closer)
     // -- all arguments are scalars aka normal numbers
     // -- aspectRatio is defined as window width divided by window height
-    def setOrthographicMatrix(fov, size, near, far, aspectRatio) {
-        this.matrix = love.chai_matrices.setOrthographicMatrix(fov, size, near, far, aspectRatio)
+    def setOrthographicMatrix(left, right, bottom, top, near, far) {
+        this.matrix = love.chai_matrices.setOrthographicMatrix(left, right, bottom, top, near, far)
     }
 
     // -- returns a view matrix

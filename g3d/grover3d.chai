@@ -60,6 +60,9 @@ class grover3d {
     this.camera = camera3d()
     this.camera.updateProjectionMatrix()
     this.camera.updateViewMatrix()
+
+    require(mod_root+"g3d/lighting.chai")
+    this.lighting = lighting()
     // -- so that far polygons don't overlap near polygons
     // love.chai_gfx.setDepthMode("lequal", true)
 

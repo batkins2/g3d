@@ -126,14 +126,41 @@ class model {
         g3d.camera.setParams(cameraParams)        
     }
 
+    def getCamera() {
+        auto cameraParams = this.mesh.getCameraParams()
+        return cameraParams
+    }
+
     def setCamera(x, y, z) {
         auto cameraParams = this.mesh.getCameraParams()
         cameraParams["position"][0] = x
-        cameraParams["position"][1] = y
-        if (z != false) {
+        if (type_match(y, "float")) {
+            cameraParams["position"][1] = y
+        }
+        if (type_match(z, "float")) {
             cameraParams["position"][2] = z
         }
+        cameraParams["target"][0] = x
+        if (type_match(y, "float")) {
+            cameraParams["target"][1] = y
+        }
+        if (type_match(z, "float")) {
+            cameraParams["target"][2] = z
+        }
         g3d.camera.setParams(cameraParams)        
+    }
+
+    def setLighting(x, y, z) {
+        auto lightParams = this.mesh.getLightParams()
+        lightParams["position"][0] = x
+        if (type_match(y, "float")) {
+            lightParams["position"][1] = y
+        }
+        if (type_match(y, "float")) {
+            lightParams["position"][2] = z
+        }
+        this.mesh.setLightParams(lightParams)
+        // g3d.lighting.setParams(lightParams)  
     }
 
     // -- populate model's normals in model's mesh automatically
