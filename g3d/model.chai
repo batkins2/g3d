@@ -121,18 +121,35 @@ class model {
         // this.draw()
     }
 
-    def initCamera() {
-        auto cameraParams = this.mesh.getCameraParams()
-        g3d.camera.setParams(cameraParams)        
+    def initCamera(id) {
+        auto cameraParams = this.mesh.getCameraParams(id)
+        switch (id) {
+            case (0) {
+                g3d.camera.setParams(cameraParams)   
+                break
+            }
+            case (1) {
+                g3d.camera2.setParams(cameraParams)   
+                break
+            }
+            case (2) {
+                g3d.camera3.setParams(cameraParams)   
+                break
+            }
+            case (3) {
+                g3d.camera4.setParams(cameraParams)   
+                break
+            }
+        }             
     }
 
-    def getCamera() {
-        auto cameraParams = this.mesh.getCameraParams()
+    def getCamera(id) {
+        auto cameraParams = this.mesh.getCameraParams(id)
         return cameraParams
     }
 
-    def setCamera(x, y, z) {
-        auto cameraParams = this.mesh.getCameraParams()
+    def setCamera(x, y, z, id) {
+        auto cameraParams = this.mesh.getCameraParams(id)
         cameraParams["position"][0] = x
         if (type_match(y, "float")) {
             cameraParams["position"][1] = y
@@ -147,11 +164,28 @@ class model {
         if (type_match(z, "float")) {
             cameraParams["target"][2] = z
         }
-        g3d.camera.setParams(cameraParams)        
+        switch (id) {
+            case (0) {
+                g3d.camera.setParams(cameraParams)   
+                break
+            }
+            case (1) {
+                g3d.camera2.setParams(cameraParams)   
+                break
+            }
+            case (2) {
+                g3d.camera3.setParams(cameraParams)   
+                break
+            }
+            case (3) {
+                g3d.camera4.setParams(cameraParams)   
+                break
+            }
+        }       
     }
 
-    def setLighting(x, y, z) {
-        auto lightParams = this.mesh.getLightParams()
+    def setLighting(x, y, z, id) {
+        auto lightParams = this.mesh.getLightParams(id)
         lightParams["position"][0] = x
         if (type_match(y, "float")) {
             lightParams["position"][1] = y
@@ -159,7 +193,7 @@ class model {
         if (type_match(y, "float")) {
             lightParams["position"][2] = z
         }
-        this.mesh.setLightParams(lightParams)
+        this.mesh.setLightParams(lightParams, id)
         // g3d.lighting.setParams(lightParams)  
     }
 
