@@ -15,7 +15,6 @@
 
 class model {
     def model() {
-        
         // -- define some default properties that every model should inherit
         // -- that being the standard vertexFormat and basic 3D shader
         this.vertexFormat = [
@@ -79,7 +78,8 @@ class model {
     // -- this returns a new instance of the model class
     // -- a model must be given a .obj file || equivalent lua table, and a texture
     // -- translation, rotation, and scale are all 3d vectors and are all optional
-    def newModel(verts, texture, translation, rotation, scale) {
+    def newModel(verts, texture, translation, rotation, scale, data) {
+        
         // -- if verts is a string, use it as a path to a .obj file
         // -- otherwise verts is a table, use it as a model defintion
         // if (type_match(verts, "string")) {
@@ -102,8 +102,17 @@ class model {
         // }
 
         // -- initialize my variables
-        this.mesh = love.chai_mesh.newMesh()
-        this.mesh.loadMeshFromFile(this.vertexFormat, verts, "triangles")
+        if (type_match(data, [])) {   
+            var g = VectorInt()
+            g.push_back(0)         
+            this.mesh = love.chai_mesh.newMesh()
+            meshData.push_back(this.mesh.loadMeshFromFile(this.vertexFormat, verts, "triangles"))
+            meshDataList.push_back(verts)
+        } else {
+            love.window.showMessageBox("test123")
+            this.mesh = love.chai_mesh.newMeshWithData(data)
+            this.mesh.loadMeshFromFile(this.vertexFormat, verts, "triangles")
+        }
         //   love.window.showMessageBox("test")
         if (this.texture != "") {
             this.mesh.setTexture(this.texture)
@@ -119,6 +128,7 @@ class model {
         this.setTransform(translation, rotation, scale)
         //   love.window.showMessageBox("test")
         // this.draw()
+        love.window.showMessageBox("test")
     }
 
     def initCamera(id) {
