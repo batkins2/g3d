@@ -391,4 +391,8 @@ class model {
     def destroy() {
         this.mesh.destroy()
     }
+
+    def getId() {
+        return this.mesh.getId()
+    }
 }
