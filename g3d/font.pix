@@ -1,0 +1,11 @@
+layout (location = 0) out vec4 love_PixelColor;
+varying vec2 vTexCoord; // Texture coordinates
+varying vec4 vColor;    // Vertex color
+
+uniform sampler2D MainTex; // Texture sampler
+
+void pixelmain() {
+    // vec4 texColor = vec4(1.0f, 1.0f, 1.0f, texture(MainTex, vTexCoord).r); // Sample the texture
+    vec4 texColor = texture(MainTex, vTexCoord); // Sample the texture
+    love_PixelColor = vColor * texColor; // Combine vertex color with texture color
+}
