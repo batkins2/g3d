@@ -34,6 +34,7 @@ varying vec4 vertexWeight;
 varying vec4 vertexJoint;
 varying vec3 lighting;
 varying vec4 fragPosLightSpace;
+varying vec2 vTexCoord;
 
 vec4 position(mat4 transformProjection, vec4 vertexPosition) {
     // Initialize skinned position and normal
@@ -77,17 +78,20 @@ vec4 position(mat4 transformProjection, vec4 vertexPosition) {
     vec3 norm = normalize(transformedNormal);
     vec3 lightDir = normalize(lightDirection);
     float diff = max(dot(norm, lightDir), 0.0);
-    float li = lightIntensity;
-    vec3 diffuse = diff * lightColor * li;
+    
+    vec3 diffuse = diff * lightColor * lightIntensity;
     vec3 ambient = ambientColor;
     lighting = diffuse + ambient;
 
     // Transform the vertex position to light space
-    fragPosLightSpace = lightSpaceMatrix * transformedPosition;
+    fragPosLightSpace = lightSpaceMatrix * transformedPosition;    
 
     if (flip == 1) {
         // Flip the y-axis for canvas rendering
         screenPosition.y = -screenPosition.y;
     }
+
+    // vTexCoord = screenPosition.xy / screenPosition.w * 0.5 + 0.5;
+    vTexCoord = vertexNormal.xy * 0.5 + 0.5;
     return screenPosition;
 }
