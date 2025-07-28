@@ -1,0 +1,61 @@
+uniform sampler2D shadowMap;
+uniform int shadow;
+
+uniform int isSpecular;
+uniform sampler2D specularMap;
+
+varying vec3 lighting;
+varying vec4 fragPosLightSpace;
+varying vec2 vTexCoord;
+
+float grid(vec2 vBC, float width) {
+    vec3 bary = vec3(vBC.x, vBC.y, 1.0 - vBC.x - vBC.y);
+    vec3 d = fwidth(bary);
+    vec3 a3 = smoothstep(d * (width - 0.5), d * (width + 0.5), bary);
+    return min(min(a3.x, a3.y), a3.z);
+}
+
+float ShadowCalculation() {
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;
+    float closestDepth = texture2D(shadowMap, projCoords.xy).r;
+    float currentDepth = projCoords.z;
+    float shadow = currentDepth > closestDepth ? 0.5 : 0.0;
+    return shadow;
+}
+
+vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) { 
+    vec4 pixel = Texel(texture, texture_coords);
+
+    // --- Grid overlay in world space (XZ plane) ---
+    float gridSize = 1.0; // 1 unit grid
+    float lineWidth = 0.03; // thickness of grid lines
+
+    // Use world position (assume available as varying, else use screen_coords)
+    vec3 worldPos = vec3(0.0);
+    #ifdef GL_ES
+    // If you have worldPosition as a varying, use it:
+    // worldPos = worldPosition.xyz;
+    // Otherwise, approximate with screen_coords:
+    worldPos.xz = screen_coords.xy / 64.0; // adjust scale as needed
+    #else
+    // worldPos = worldPosition.xyz;
+    worldPos.xz = screen_coords.xy / 64.0;
+    #endif
+
+    float gridX = abs(fract(worldPos.x / gridSize - 0.5) - 0.5) / fwidth(worldPos.x / gridSize);
+    float gridZ = abs(fract(worldPos.z / gridSize - 0.5) - 0.5) / fwidth(worldPos.z / gridSize);
+    float gridLine = min(gridX, gridZ);
+
+    vec3 gridColor = mix(pixel.rgb, vec3(0.2, 0.8, 0.2), smoothstep(lineWidth, 0.0, gridLine));
+
+    // --- Encode coordinates as color bands (for debug) ---
+    float xBand = mod(floor(worldPos.x), 10.0) / 10.0;
+    float zBand = mod(floor(worldPos.z), 10.0) / 10.0;
+    vec3 coordColor = vec3(xBand, 0.0, zBand);
+
+    // Mix grid and coordinate color for effect
+    vec3 finalColor = mix(gridColor, coordColor, 0.25);
+
+    return vec4(finalColor, pixel.a) * color.a;
+}

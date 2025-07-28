@@ -30,6 +30,7 @@ class camera3d {
     }
     def setParams(cameraParams) {
         this.fov = cameraParams["fov"][0]
+
         this.nearClip = cameraParams["near"][0]
         this.farClip = cameraParams["far"][0]
         this.aspectRatio = cameraParams["aspectRatio"][0]
