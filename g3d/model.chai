@@ -161,9 +161,9 @@ class model {
     def setCamera(x, y, z, tx, ty, tz, id) {
         auto cameraParams = this.mesh.getCameraParams(id)
         cameraParams["position"][0] = x
-        if (type_match(y, "float")) {
+        // if (type_match(y, "float")) {
             cameraParams["position"][1] = y
-        }
+        // }
         if (type_match(z, "float")) {
             cameraParams["position"][2] = z
         }
@@ -172,7 +172,7 @@ class model {
             cameraParams["target"][1] = ty
         }
         if (type_match(tz, "float")) {
-            cameraParams["target"][2] = z
+            cameraParams["target"][2] = tz
         }
         switch (id) {
             case (0) {
@@ -197,9 +197,9 @@ class model {
     def setLighting(x, y, z, id) {
         auto lightParams = this.mesh.getLightParams(id)
         lightParams["position"][0] = x
-        if (type_match(y, "float")) {
+        // if (type_match(y, "float")) {
             lightParams["position"][1] = y
-        }
+        // }
         if (type_match(y, "float")) {
             lightParams["position"][2] = z
         }
