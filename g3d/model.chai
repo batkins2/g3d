@@ -161,9 +161,9 @@ class model {
     def setCamera(x, y, z, tx, ty, tz, id) {
         auto cameraParams = this.mesh.getCameraParams(id)
         cameraParams["position"][0] = x
-        // if (type_match(y, "float")) {
+        if (type_match(y, "float")) {
             cameraParams["position"][1] = y
-        // }
+        }
         if (type_match(z, "float")) {
             cameraParams["position"][2] = z
         }

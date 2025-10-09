@@ -18,43 +18,44 @@ float grid(vec2 vBC, float width) {
 float ShadowCalculation() {
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
+    
+    // Early out if outside shadow map bounds
+    if (projCoords.x < 0.0 || projCoords.x > 1.0 || 
+        projCoords.y < 0.0 || projCoords.y > 1.0 || 
+        projCoords.z > 1.0) {
+        return 0.0;
+    }
+    
     float closestDepth = texture2D(shadowMap, projCoords.xy).r;
     float currentDepth = projCoords.z;
-    float shadow = currentDepth > closestDepth ? 0.5 : 0.0;
-    return shadow;
+    return currentDepth > closestDepth ? 0.5 : 0.0;
 }
 
 vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) { 
-    
     vec4 pixel = Texel(texture, texture_coords);
+    
+    // Calculate shadows once for both paths
+    float shadows = 0.0;
+    if (shadow == 1) {
+        shadows = ShadowCalculation();
+    }
 
     if (isSpecular == 1) {
         vec3 specularColor = texture2D(specularMap, vec2(vTexCoord.x, 1.0 - vTexCoord.y)).rgb;
 
-        vec3 viewDir = normalize(vec3(0.0, 0.0, 1.0));
+        // Hardcoded vectors - could be uniforms for better performance
+        vec3 viewDir = vec3(0.0, 0.0, 1.0);
         vec3 normal = vec3(0.0, 0.0, 1.0);
-        vec3 lightDir = normalize(vec3(0.0, 0.0, 1.0));
+        vec3 lightDir = vec3(0.0, 0.0, 1.0);
         vec3 reflectDir = reflect(-lightDir, normal);
         float spec = pow(max(dot(viewDir, reflectDir), 0.0), 16.0);
 
         vec3 specular = specularColor * spec;
-    
-
-        float shadows = 0.0;
-        if (shadow == 1) {
-            shadows = ShadowCalculation();
-        } 
         vec3 baseColor = (1.0 - shadows) * (pixel.rgb * lighting * 0.5);
-    
-        vec3 specularMasked = specular;
-        vec3 blendedColor = mix(baseColor, baseColor + specularMasked * 0.75, 0.5);
+        vec3 blendedColor = mix(baseColor, baseColor + specular * 0.75, 0.5);
     
         return vec4(blendedColor, pixel.a) * color.a;
     } else {
-        float shadows = 0.0;
-        if (shadow == 1) {
-            shadows = ShadowCalculation();
-        } 
         vec3 baseColor = (1.0 - shadows) * (pixel.rgb * lighting);
         return vec4(baseColor, pixel.a) * color.a;
     }    
