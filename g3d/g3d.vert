@@ -9,9 +9,6 @@ uniform mat4 viewMatrix;
 uniform mat4 modelMatrix;
 uniform bool isCanvasEnabled;
 
-uniform mat4 jointMatrix[100];
-uniform int jointCount;
-
 uniform vec3 lightDirection;
 uniform vec3 lightColor;
 uniform vec3 ambientColor;
@@ -31,10 +28,14 @@ varying vec3 lighting;
 varying vec4 fragPosLightSpace;
 varying vec2 vTexCoord;
 
+layout (std430, binding = 0) readonly buffer JointMatrixBuffer {
+    mat4 jointMatrix[];
+};
+
 vec4 position(mat4 transformProjection, vec4 vertexPosition) {
     float totalWeight = VertexWeight[0] + VertexWeight[1] + VertexWeight[2] + VertexWeight[3];
     
-    if (totalWeight <= 0.0 || jointCount == 0) {
+    if (totalWeight <= 0.0) {
         // Fast path: no skinning
         vec4 transformedPosition = modelMatrix * vec4(vertexPosition.xyz, 1.0);
         vec3 transformedNormal = normalize(mat3(modelMatrix) * VertexNormal);
@@ -102,7 +103,7 @@ vec4 position(mat4 transformProjection, vec4 vertexPosition) {
         }
 
         // If no weights, use original position/normal
-        if (w0 + w1 + w2 + w3 == 0.0 || jointCount == 0) {
+        if (w0 + w1 + w2 + w3 == 0.0) {
             skinnedPosition = vec4(vertexPosition.xyz, 1.0);
             skinnedNormal = VertexNormal;
         }
