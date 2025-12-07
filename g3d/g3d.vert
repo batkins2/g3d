@@ -38,6 +38,10 @@ varying vec2 vTexCoord;
 uniform mat4 modelMatrix[100];
 uniform mat4 jointMatrix[10000];
 
+// layout(set = 0, binding = 4) readonly buffer OutputBuffer {
+//     mat4 jointMatrix[];
+// };
+
 vec4 position(mat4 transformProjection, vec4 vertexPosition) {
     float totalWeight = VertexWeight[0] + VertexWeight[1] + VertexWeight[2] + VertexWeight[3];
     

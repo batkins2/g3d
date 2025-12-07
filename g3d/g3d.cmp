@@ -1,0 +1,109 @@
+layout(set = 0, binding = 0) buffer OutputBuffer {
+    mat4 jointMatrix[];
+};
+
+layout(set = 0, binding = 1) readonly buffer InputBuffer {
+    float InputData[];
+};
+
+// layout (push_constant) uniform constants {
+//     vec4 jointInfo;
+// };
+
+// Quaternion slerp implementation
+vec4 quatSlerp(vec4 q1, vec4 q2, float t) {
+    float cosTheta = dot(q1, q2);
+    vec4 q2b = q2;
+    if (cosTheta < 0.0) {
+        q2b = -q2;
+        cosTheta = -cosTheta;
+    }
+    float k0, k1;
+    if (cosTheta > 0.9995) {
+        k0 = 1.0 - t;
+        k1 = t;
+    } else {
+        float sinTheta = sqrt(1.0 - cosTheta * cosTheta);
+        float angle = acos(cosTheta);
+        k0 = sin((1.0 - t) * angle) / sinTheta;
+        k1 = sin(t * angle) / sinTheta;
+    }
+    return normalize(q1 * k0 + q2b * k1);
+}
+
+// Quaternion to mat4 conversion
+mat4 quatToMat4(vec4 q) {
+    float x = q.x, y = q.y, z = q.z, w = q.w;
+    float x2 = x + x, y2 = y + y, z2 = z + z;
+    float xx = x * x2, xy = x * y2, xz = x * z2;
+    float yy = y * y2, yz = y * z2, zz = z * z2;
+    float wx = w * x2, wy = w * y2, wz = w * z2;
+
+    return mat4(
+        1.0 - (yy + zz), xy + wz, xz - wy, 0.0,
+        xy - wz, 1.0 - (xx + zz), yz + wx, 0.0,
+        xz + wy, yz - wx, 1.0 - (xx + yy), 0.0,
+        0.0, 0.0, 0.0, 1.0
+    );
+}
+
+void computemain() {
+    vec4 jointInfo = vec4(InputData[0], InputData[1], InputData[2], InputData[3]);
+    if (jointInfo.x == 0) {
+        jointMatrix[0] = mat4(1.0);
+    }
+    else if (jointInfo.x > 0 && jointInfo.w == 0.0) {
+        for (uint i = 0u; i < uint(jointInfo.x); i++) {
+            jointMatrix[i] = mat4(1.0);
+        }
+    } else {
+        for (uint i = 0u; i < uint(jointInfo.x); i++) {
+            uint base = i * 49 + 4;
+            int nodeIndex = int(InputData[base + 0]);
+            int channelType = int(InputData[base + 1]);
+            float t1 = InputData[base + 2];
+            float t2 = InputData[base + 3];
+            float t = InputData[base + 4];
+            vec4 v1 = vec4(InputData[base + 5], InputData[base + 6], InputData[base + 7], InputData[base + 8]);
+            vec4 v2 = vec4(InputData[base + 9], InputData[base + 10], InputData[base + 11], InputData[base + 12]);
+            vec4 interpolatedValue = vec4(InputData[base + 13], InputData[base + 14], InputData[base + 15], InputData[base + 16]);
+            mat4 jm = mat4(InputData[base + 17], InputData[base + 18], InputData[base + 19], InputData[base + 20], InputData[base + 21], InputData[base + 22], InputData[base + 23], InputData[base + 24], InputData[base + 25], InputData[base + 26], InputData[base + 27], InputData[base + 28], InputData[base + 29], InputData[base + 30], InputData[base + 31], InputData[base + 32]);
+            mat4 jointIBMatrix = mat4(InputData[base + 17 + 16], InputData[base + 18 + 16], InputData[base + 19 + 16], InputData[base + 20 + 16],
+                                         InputData[base + 21 + 16], InputData[base + 22 + 16], InputData[base + 23 + 16], InputData[base + 24 + 16],
+                                         InputData[base + 25 + 16], InputData[base + 26 + 16], InputData[base + 27 + 16], InputData[base + 28 + 16],
+                                         InputData[base + 29 + 16], InputData[base + 30 + 16], InputData[base + 31 + 16], InputData[base + 32 + 16]);
+            if (channelType == 0) {
+                // Translation
+                mat4 t = mat4(1.0);
+                t[3].xyz = interpolatedValue.xyz;
+                jm = t * jm;
+            } else if (channelType == 1 && t <= 1.0 && t >= 0.0) {
+                mat4 bindMatrix = inverse(jointIBMatrix);              
+                mat4 invMatrix = inverse(jm);
+
+                // Hierarchy rotation accumulation (pseudo, as GLSL doesn't have std::vector or iterators)
+                // You'd need to loop over hierarchy[] and accumulate quaternions
+                // For now, assume hierarchyRotation and hierarchyRotation2 are identity
+                // and rotation is slerped between v2 and v1
+                vec4 q1 = v1;
+                vec4 q2 = v2;
+                // slerp function for quaternions (not built-in, so you need to implement it)
+                vec4 rotation = quatSlerp(q2, q1, t);
+
+                // Compose final rotation matrix
+                mat4 rotMat = quatToMat4(rotation);
+                jm = bindMatrix * rotMat * jointIBMatrix * jm;
+            } else if (channelType == 2) {
+                // Scale
+                mat4 s = mat4(1.0);
+                s[0][0] = interpolatedValue.x;
+                s[1][1] = interpolatedValue.y;
+                s[2][2] = interpolatedValue.z;
+                jm = s * jm;
+            }
+            
+            
+            jointMatrix[nodeIndex] = jm * inverse(jointIBMatrix);
+        }
+    }
+}
