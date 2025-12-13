@@ -20,7 +20,41 @@
 class matrix {
     def matrix() {
         // -- initialize a matrix as the identity matrix
-        this.matrix = [1.0f,0.0f,0.0f,0.0f,0.0f,1.0f,0.0f,0.0f,0.0f,0.0f,1.0f,0.0f,0.0f,0.0f,0.0f,1.0f]
+        // Create identity matrix as VectorFloat to match C++ signature
+        this.matrix = VectorFloat()
+        this.matrix.push_back(1.0f)
+        this.matrix.push_back(0.0f)
+        this.matrix.push_back(0.0f)
+        this.matrix.push_back(0.0f)
+        this.matrix.push_back(0.0f)
+        this.matrix.push_back(1.0f)
+        this.matrix.push_back(0.0f)
+        this.matrix.push_back(0.0f)
+        this.matrix.push_back(0.0f)
+        this.matrix.push_back(0.0f)
+        this.matrix.push_back(1.0f)
+        this.matrix.push_back(0.0f)
+        this.matrix.push_back(0.0f)
+        this.matrix.push_back(0.0f)
+        this.matrix.push_back(0.0f)
+        this.matrix.push_back(1.0f)
+
+        this.identityMatrix = VectorFloat()
+        this.identityMatrix.push_back(1.0f)
+        this.identityMatrix.push_back(0.0f)
+        this.identityMatrix.push_back(0.0f)
+        this.identityMatrix.push_back(0.0f)
+        this.identityMatrix.push_back(0.0f)
+        this.identityMatrix.push_back(1.0f)
+        this.identityMatrix.push_back(0.0f)
+        this.identityMatrix.push_back(0.0f)
+        this.identityMatrix.push_back(0.0f)
+        this.identityMatrix.push_back(0.0f)
+        this.identityMatrix.push_back(1.0f)
+        this.identityMatrix.push_back(0.0f)
+        this.identityMatrix.push_back(0.0f)
+        this.identityMatrix.push_back(0.0f)
+        this.identityMatrix.push_back(1.0f)
     }
     // -- automatically converts a matrix to a string
     // -- for printing to console and debugging
@@ -37,7 +71,7 @@ class matrix {
     // -- returns a transformation matrix
     // -- translation, rotation, and scale are all 3d vectors
     def setTransformationMatrix(translation, rotation, scale) {
-       this.matrix = love.chai_matrices.setTransformationMatrix(translation, rotation, scale, [1.0f,0.0f,0.0f,0.0f,0.0f,1.0f,0.0f,0.0f,0.0f,0.0f,1.0f,0.0f,0.0f,0.0f,0.0f,1.0f])
+       love.chai_matrices.setTransformationMatrix(translation, rotation, scale, this.identityMatrix, this.matrix)
     }
 
     // -- returns a perspective projection matrix
@@ -45,7 +79,7 @@ class matrix {
     // -- all arguments are scalars aka normal numbers
     // -- aspectRatio is defined as window width divided by window height
     def setProjectionMatrix(fov, aspectRatio, near, far) {
-        this.matrix = love.chai_matrices.setProjectionMatrix(fov, aspectRatio, near, far)
+        love.chai_matrices.setProjectionMatrix(fov, aspectRatio, near, far, this.matrix)
     }
 
     // -- returns an orthographic projection matrix
@@ -53,7 +87,7 @@ class matrix {
     // -- all arguments are scalars aka normal numbers
     // -- aspectRatio is defined as window width divided by window height
     def setOrthographicMatrix(left, right, bottom, top, near, far) {
-        this.matrix = love.chai_matrices.setOrthographicMatrix(left, right, bottom, top, near, far)
+        love.chai_matrices.setOrthographicMatrix(left, right, bottom, top, near, far, this.matrix)
     }
 
     // -- returns a view matrix
@@ -69,6 +103,6 @@ class matrix {
         // love.window.showMessageBox(to_string(up[1]))
         // love.window.showMessageBox(to_string(up[2]))
 
-        this.matrix = love.chai_matrices.setViewMatrix(eye, target, up)
+        love.chai_matrices.setViewMatrix(eye, target, up, this.matrix)
     }
 }

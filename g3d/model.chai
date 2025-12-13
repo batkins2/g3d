@@ -25,9 +25,18 @@ class model {
             ["VertexJoint", "float", "4"],
             ["VertexColor", "byte", "4"]
         ]
-        this.translation = [0.0f,0.0f,0.0f]
-        this.rotation = [0.0f,0.0f,0.0f]
-        this.scale = [1.0f,1.0f,1.0f]
+        this.translation = VectorFloat()
+        this.translation.push_back(0.0f)
+        this.translation.push_back(0.0f)
+        this.translation.push_back(0.0f)
+        this.rotation = VectorFloat()
+        this.rotation.push_back(0.0f)
+        this.rotation.push_back(0.0f)
+        this.rotation.push_back(0.0f)
+        this.scale = VectorFloat()
+        this.scale.push_back(1.0f)
+        this.scale.push_back(1.0f)
+        this.scale.push_back(1.0f)
         // this.shader = g3d.shader
 
         // -- makes models use less memory when loaded in ram
@@ -241,7 +250,10 @@ class model {
     def setTransform(translation, rotation, scale) {
         if (this.hasTransformed(translation, rotation, scale)) {
            if (type_match(translation, true)) {
-                this.translation = [0.0f,0.0f,0.0f]
+                this.translation = VectorFloat()
+                this.translation.push_back(0.0f)
+                this.translation.push_back(0.0f)
+                this.translation.push_back(0.0f)
             } else {
                 this.translation = translation
             }

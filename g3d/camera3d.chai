@@ -21,9 +21,18 @@ class camera3d {
         this.nearClip = 0.01f
         this.farClip = 1000.0f
         this.aspectRatio = 1.33f
-        this.position = [0.0f,0.0f,0.0f]
-        this.target = [0.0f,0.0f,-1.0f]
-        this.up = [0.0f,1.0f,1.0f]
+        this.position = VectorFloat()
+        this.position.push_back(0.0f)
+        this.position.push_back(0.0f)
+        this.position.push_back(0.0f)
+        this.target = VectorFloat()
+        this.target.push_back(0.0f)
+        this.target.push_back(0.0f)
+        this.target.push_back(-1.0f)
+        this.up = VectorFloat()
+        this.up.push_back(0.0f)
+        this.up.push_back(1.0f)
+        this.up.push_back(1.0f)
 
         this.viewMatrix = matrix()
         this.projectionMatrix = matrix()
@@ -58,7 +67,10 @@ class camera3d {
     }
     //-- read-only variables, can't be set by the user
     def getDirectionPitch() {
-        return [this.fpsController["direction"], this.fpsController["pitch"]]
+        auto result = VectorFloat()
+        result.push_back(this.fpsController["direction"])
+        result.push_back(this.fpsController["pitch"])
+        return result
     }
 
     //-- convenient def to return the camera's normalized look vector
@@ -69,10 +81,17 @@ class camera3d {
         auto length = sqrt(pow(vx*1.0f,2.0f) + pow(vy*1.0f,2.0f) + pow(vz*1.0f,2.0f) * 1.0f)
 
         //-- make sure not to divide by 0
+        auto result = VectorFloat()
         if (length > 0) {
-            return [vx/length, vy/length, vz/length]
+            result.push_back(vx/length)
+            result.push_back(vy/length)
+            result.push_back(vz/length)
+        } else {
+            result.push_back(vx)
+            result.push_back(vy)
+            result.push_back(vz)
         }
-        return [vx,vy,vz]
+        return result
     }
 
     //-- give the camera a point to look from and a point to look towards

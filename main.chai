@@ -21,33 +21,51 @@ def load() {
 def update(dt) {
     timer = timer + dt
     
-    if (!firstDraw) {
-
-    }
     g3d.camera.firstPersonMovement(dt)
     
 }
 
 def draw() {
     
-    if (!firstDraw) {    
+    if (!firstDraw) {
         scene.setShader(g3d.shader)
-        
         g3d.shader.send("viewMatrix", g3d.camera.viewMatrix.matrix)
-       
         scene.setMatrix(knight.matrix.matrix, 1)
-        
         scene.draw()
     }
     if (firstDraw) {
         g3d.shader = love.chai_gfx.newShader("g3d/g3d.vert")
         stage = model()
-        stage.newModel("assets/testscene7.glb", "", [0.0f,0.0f,0.0f], [0.0f,0.0f,0.0f], [1.0f,1.0f,1.0f])
+        var stagePos = VectorFloat()
+        stagePos.push_back(0.0f)
+        stagePos.push_back(0.0f)
+        stagePos.push_back(0.0f)
+        var stageRot = VectorFloat()
+        stageRot.push_back(0.0f)
+        stageRot.push_back(0.0f)
+        stageRot.push_back(0.0f)
+        var stageScale = VectorFloat()
+        stageScale.push_back(1.0f)
+        stageScale.push_back(1.0f)
+        stageScale.push_back(1.0f)
+        stage.newModel("assets/testscene7.glb", "", stagePos, stageRot, stageScale)
         // stage.newModel("assets/finger3.glb", "", [0.0f,0.0f,0.0f], [0.0f,0.0f,0.0f], [1.0f,1.0f,1.0f])
         stage.initCamera()
         // love.window.showMessageBox("test")
         knight = model()
-        knight.newModel("assets/knight_walk.glb", "", [0.0f,1.3f,10.0f], [0.0f,0.0f,0.0f], [1.0f,1.0f,1.0f])
+        var knightPos = VectorFloat()
+        knightPos.push_back(0.0f)
+        knightPos.push_back(1.3f)
+        knightPos.push_back(10.0f)
+        var knightRot = VectorFloat()
+        knightRot.push_back(0.0f)
+        knightRot.push_back(0.0f)
+        knightRot.push_back(0.0f)
+        var knightScale = VectorFloat()
+        knightScale.push_back(1.0f)
+        knightScale.push_back(1.0f)
+        knightScale.push_back(1.0f)
+        knight.newModel("assets/knight_walk.glb", "", knightPos, knightRot, knightScale)
         scene = love.chai_gfx.newScene()
         // love.window.showMessageBox("test")
         scene.addMesh(stage.mesh)
