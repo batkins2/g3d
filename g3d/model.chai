@@ -137,7 +137,7 @@ class model {
         this.setTransform(translation, rotation, scale)
         //   love.window.showMessageBox("test")
         // this.draw()
-        love.window.showMessageBox("test")
+        // love.window.showMessageBox("test")
     }
 
     def initCamera(id) {

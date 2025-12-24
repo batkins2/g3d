@@ -43,12 +43,14 @@ uniform mat4 jointMatrix[10000];
 // };
 
 vec4 position(mat4 transformProjection, vec4 vertexPosition) {
-    float totalWeight = VertexWeight[0] + VertexWeight[1] + VertexWeight[2] + VertexWeight[3];
+    // float totalWeight = VertexWeight[0] + VertexWeight[1] + VertexWeight[2] + VertexWeight[3];
     
-    if (totalWeight <= 0.0 || jointInfo.x == 0) {
+    // if (totalWeight <= 0.0 || jointInfo.x == 0) {
+    if (jointInfo.x == 0) {
         // Fast path: no skinning
-        vec4 transformedPosition = modelMatrix[int(jointInfo.z)] * vec4(vertexPosition.xyz, 1.0);
-        vec3 transformedNormal = normalize(mat3(modelMatrix[int(jointInfo.z)]) * VertexNormal);
+        int i = int(jointInfo[2]);
+        vec4 transformedPosition = modelMatrix[i] * vec4(vertexPosition.xyz, 1.0);
+        vec3 transformedNormal = normalize(mat3(modelMatrix[i]) * VertexNormal);
 
         // --- Outputs for fragment shader ---
         worldPosition = transformedPosition;
