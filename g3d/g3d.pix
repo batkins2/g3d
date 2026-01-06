@@ -1,8 +1,18 @@
-uniform sampler2D shadowMap;
-uniform int shadow;
+// written by groverbuger for g3d with split-screen support
+// september 2021
+// MIT license
 
-uniform int isSpecular;
+uniform sampler2D shadowMap;
+
 uniform sampler2D specularMap;
+
+flat varying int shadowOut;
+
+flat varying int isSpecularOut;
+
+// Split-screen configuration (controlled by CPU)
+varying float splitScreenModeOut; // 0=off, 1=2x2 grid, 2=2x1 vertical, 3=1x2 horizontal
+flat varying int currentViewID; // Which view/player is currently being rendered (0-3)
 
 varying vec3 lighting;
 varying vec4 fragPosLightSpace;
@@ -32,15 +42,79 @@ float ShadowCalculation() {
 }
 
 vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) { 
+    float splitX = 0.5; // Vertical split at 50%
+    float splitY = 0.5; // Horizontal split at 50%
+    
+    // Scissor-based split-screen: discard pixels outside current view's viewport
+    if (splitScreenModeOut == 1.0) {
+        // 2x2 grid - each view gets a quadrant
+        if (currentViewID == 0) {
+            // Bottom-left quadrant
+            if (screen_coords.x >= splitX || screen_coords.y >= splitY) {
+                discard;
+            }
+        } else if (currentViewID == 1) {
+            // Bottom-right quadrant
+            if (screen_coords.x < splitX || screen_coords.y >= splitY) {
+                discard;
+            }
+        } else if (currentViewID == 2) {
+            // Top-left quadrant
+            if (screen_coords.x >= splitX || screen_coords.y < splitY) {
+                discard;
+            }
+        } else if (currentViewID == 3) {
+            // Top-right quadrant
+            if (screen_coords.x < splitX || screen_coords.y < splitY) {
+                discard;
+            }
+        }
+    } else if (splitScreenModeOut == 2.0) {
+        // 2x1 vertical split
+        if (currentViewID == 0) {
+            // Left half
+            if (screen_coords.x >= splitX) {
+                discard;
+            }
+        } else {
+            // Right half
+            if (screen_coords.x < splitX) {
+                discard;
+            }
+        }
+    } else if (splitScreenModeOut == 3.0) {
+        // 1x2 horizontal split
+        if (currentViewID == 1) {
+            // Bottom half
+            if (screen_coords.y < splitY) {
+                discard;
+            }
+        // } else {
+        //     // Top half
+        //     if (screen_coords.y < splitY) {
+        //         discard;
+        //     }
+        }
+    }
+    
+    // Draw split-screen borders (thin lines at split boundaries)
+    float borderWidth = 0.002;
+    if (splitScreenModeOut > 0.0) {
+        if ((abs(screen_coords.x - splitX) < borderWidth && splitScreenModeOut != 3.0) ||
+            (abs(screen_coords.y - splitY) < borderWidth && splitScreenModeOut != 2.0)) {
+            return vec4(0.1, 0.1, 0.1, 1.0); // Dark border
+        }
+    }
+    
     vec4 pixel = Texel(texture, texture_coords);
     
     // Calculate shadows once for both paths
     float shadows = 0.0;
-    if (shadow == 1) {
+    if (shadowOut == 1) {
         shadows = ShadowCalculation();
     }
 
-    if (isSpecular == 1) {
+    if (isSpecularOut == 1) {
         vec3 specularColor = texture2D(specularMap, vec2(vTexCoord.x, 1.0 - vTexCoord.y)).rgb;
 
         // Hardcoded vectors - could be uniforms for better performance

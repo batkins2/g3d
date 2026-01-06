@@ -2,13 +2,19 @@
 // september 2021
 // MIT license
 
-// Optimized vertex shader for g3d
+// Optimized vertex shader for g3d with multiview support
+
+#extension GL_OVR_multiview2 : enable
+layout(num_views = 4) in;
 
 // layout (std430, binding = 0) readonly buffer JointMatrixBlock {
 //     mat4 jointMatrix[];
 // };
  
 uniform mat4 projectionMatrix;
+uniform mat4 projectionMatrix2;
+uniform mat4 projectionMatrix3;
+uniform mat4 projectionMatrix4;
 uniform bool isCanvasEnabled;
 
 uniform vec3 lightDirection;
@@ -17,10 +23,42 @@ uniform vec3 ambientColor;
 uniform float lightIntensity;
 uniform mat4 lightSpaceMatrix;
 uniform mat4 viewMatrix;
+uniform mat4 viewMatrix2;
+uniform mat4 viewMatrix3;
+uniform mat4 viewMatrix4;
+
+uniform int shadow;
+
+uniform int isSpecular;
+
+// Split-screen configuration (controlled by CPU)
+uniform float splitScreenMode; // 0=off, 1=2x2 grid, 2=2x1 vertical, 3=1x2 horizontal
 
 layout (push_constant) uniform constants {
-    vec4 jointInfo; // x = jointCount, y = jointOffset    
+    vec4 jointInfo; // x = jointCount, y = jointOffset  
+    vec4 miscInfo;  // x = useViewMatrix (deprecated with multiview, kept for compatibility)
 };
+
+// Helper function to select view-specific matrices based on view ID
+mat4 getViewMatrix(uint viewID) {
+    switch(viewID) {
+        case 0u: return viewMatrix;
+        case 1u: return viewMatrix2;
+        case 2u: return viewMatrix3;
+        case 3u: return viewMatrix4;
+        default: return viewMatrix;
+    }
+}
+
+mat4 getProjectionMatrix(uint viewID) {
+    switch(viewID) {
+        case 0u: return projectionMatrix;
+        case 1u: return projectionMatrix2;
+        case 2u: return projectionMatrix3;
+        case 3u: return projectionMatrix4;
+        default: return projectionMatrix;
+    }
+}
 
 attribute vec3 VertexNormal;
 attribute vec4 VertexWeight;
@@ -35,6 +73,11 @@ varying vec3 lighting;
 varying vec4 fragPosLightSpace;
 varying vec2 vTexCoord;
 
+varying float splitScreenModeOut; // 0=off, 1=2x2 grid, 2=2x1 vertical, 3=1x2 horizontal
+flat varying int shadowOut;
+flat varying int isSpecularOut;
+flat varying int currentViewID;
+
 uniform mat4 modelMatrix[100];
 uniform mat4 jointMatrix[10000];
 
@@ -46,6 +89,15 @@ vec4 position(mat4 transformProjection, vec4 vertexPosition) {
     // float totalWeight = VertexWeight[0] + VertexWeight[1] + VertexWeight[2] + VertexWeight[3];
     
     // if (totalWeight <= 0.0 || jointInfo.x == 0) {
+    
+    shadowOut = shadow;
+    isSpecularOut = isSpecular;
+    splitScreenModeOut = splitScreenMode;
+
+    int viewID = int(miscInfo.x);
+    currentViewID = viewID;
+    mat4 vm = getViewMatrix(viewID);
+    mat4 pm = getProjectionMatrix(viewID);
     if (jointInfo.x == 0) {
         // Fast path: no skinning
         int i = int(jointInfo[2]);
@@ -54,8 +106,8 @@ vec4 position(mat4 transformProjection, vec4 vertexPosition) {
 
         // --- Outputs for fragment shader ---
         worldPosition = transformedPosition;
-        viewPosition = viewMatrix * worldPosition;
-        screenPosition = projectionMatrix * viewPosition;
+        viewPosition = vm * worldPosition;
+        screenPosition = pm * viewPosition;
         vertexNormal = transformedNormal;
         vertexColor = VertexColor;
 
@@ -128,8 +180,8 @@ vec4 position(mat4 transformProjection, vec4 vertexPosition) {
 
         // --- Outputs for fragment shader ---
         worldPosition = transformedPosition;
-        viewPosition = viewMatrix * worldPosition;
-        screenPosition = projectionMatrix * viewPosition;
+        viewPosition = vm * worldPosition;
+        screenPosition = pm * viewPosition;
         vertexNormal = transformedNormal;
         vertexColor = VertexColor;
 
