@@ -28,15 +28,14 @@ uniform mat4 viewMatrix3;
 uniform mat4 viewMatrix4;
 
 uniform int shadow;
-
-uniform int isSpecular;
+uniform int currentModelIndex; // Fallback when push constants aren't set
 
 // Split-screen configuration (controlled by CPU)
 uniform float splitScreenMode; // 0=off, 1=2x2 grid, 2=2x1 vertical, 3=1x2 horizontal
 
 layout (push_constant) uniform constants {
-    vec4 jointInfo; // x = jointCount, y = jointOffset  
-    vec4 miscInfo;  // x = useViewMatrix (deprecated with multiview, kept for compatibility)
+    vec4 jointInfo; // x = jointCount, y = jointOffset, z = modelIndex
+    vec4 miscInfo;  // x = viewID, y = usePBR (0=legacy, 1=Cook-Torrance), z = isSpecular (0/1)
 };
 
 // Helper function to select view-specific matrices based on view ID
@@ -68,6 +67,7 @@ varying vec4 worldPosition;
 varying vec4 viewPosition;
 varying vec4 screenPosition;
 varying vec3 vertexNormal;
+varying vec3 worldCameraPos;  // world-space camera position for PBR view direction
 varying vec4 vertexColor;
 varying vec3 lighting;
 varying vec4 fragPosLightSpace;
@@ -75,12 +75,13 @@ varying vec2 vTexCoord;
 
 varying float splitScreenModeOut; // 0=off, 1=2x2 grid, 2=2x1 vertical, 3=1x2 horizontal
 flat varying int shadowOut;
-flat varying int isSpecularOut;
 flat varying int currentViewID;
 
-uniform mat4 modelMatrix[100];
-uniform mat4 jointMatrix[10000];
+varying vec4 jointInfoOut;  // x = jointCount, y = jointOffset, z = modelIndex
+varying vec4 miscInfoOut;  // x = viewID, y = usePBR (0=legacy, 1=Cook-Torrance), z = isSpecular (0/1)
 
+uniform mat4 modelMatrix[500];
+uniform mat4 jointMatrix[50000];
 // layout(set = 0, binding = 4) readonly buffer OutputBuffer {
 //     mat4 jointMatrix[];
 // };
@@ -91,16 +92,20 @@ vec4 position(mat4 transformProjection, vec4 vertexPosition) {
     // if (totalWeight <= 0.0 || jointInfo.x == 0) {
     
     shadowOut = shadow;
-    isSpecularOut = isSpecular;
     splitScreenModeOut = splitScreenMode;
+    jointInfoOut = jointInfo;
+    miscInfoOut = miscInfo;
 
     int viewID = int(miscInfo.x);
     currentViewID = viewID;
     mat4 vm = getViewMatrix(viewID);
     mat4 pm = getProjectionMatrix(viewID);
+    // Reconstruct world-space camera position: camPos = -R^T * t  (R = mat3(vm), t = vm[3].xyz)
+    worldCameraPos = -(transpose(mat3(vm)) * vm[3].xyz);
     if (jointInfo.x == 0) {
         // Fast path: no skinning
         int i = int(jointInfo[2]);
+        if (i == 0 && currentModelIndex > 0) i = currentModelIndex; // Fallback to uniform
         vec4 transformedPosition = modelMatrix[i] * vec4(vertexPosition.xyz, 1.0);
         vec3 transformedNormal = normalize(mat3(modelMatrix[i]) * VertexNormal);
 
@@ -175,8 +180,10 @@ vec4 position(mat4 transformProjection, vec4 vertexPosition) {
         }
 
         // --- Transformations ---
-        vec4 transformedPosition = modelMatrix[int(jointInfo.z)] * skinnedPosition;
-        vec3 transformedNormal = normalize(mat3(modelMatrix[int(jointInfo.z)]) * skinnedNormal);
+        int modelIdx = int(jointInfo.z);
+        if (modelIdx == 0 && currentModelIndex > 0) modelIdx = currentModelIndex; // Fallback
+        vec4 transformedPosition = modelMatrix[modelIdx] * skinnedPosition;
+        vec3 transformedNormal = normalize(mat3(modelMatrix[modelIdx]) * skinnedNormal);
 
         // --- Outputs for fragment shader ---
         worldPosition = transformedPosition;

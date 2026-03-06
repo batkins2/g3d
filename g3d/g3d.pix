@@ -2,26 +2,86 @@
 // september 2021
 // MIT license
 
+// ── Standard maps ─────────────────────────────────────────────────────────────
 uniform sampler2D shadowMap;
-
 uniform sampler2D specularMap;
 
-flat varying int shadowOut;
+// ── PBR texture maps (glTF / Blender Principled BSDF slots) ───────────────────
+uniform sampler2D normalMap;            // Tangent-space normal map
+uniform sampler2D metallicRoughnessMap; // glTF ORM: G=roughness, B=metallic
+uniform sampler2D emissiveMap;          // Emissive / glow color
+uniform sampler2D occlusionMap;         // Ambient-occlusion (R channel)
 
-flat varying int isSpecularOut;
+// ── PBR scalar factors ────────────────────────────────────────────────────────
+// x=metallic, y=roughness, z=normalScale, w=occlusionStrength
+uniform vec4  metallicRoughnessFactors[500];
+// x=emissiveR, y=emissiveG, z=emissiveB, w=alphaCutoff
+uniform vec4  emissiveFactor[500];
+// x=hasNormalMap, y=hasMetallicRoughnessMap, z=hasEmissiveMap, w=hasOcclusionMap  (0.0/1.0)
+uniform vec4  pbrFlags[500];
+// x=alphaBlend, y=alphaMask, z=doubleSided  (0.0/1.0)
+uniform vec4  alphaMode[500];
 
-// Split-screen configuration (controlled by CPU)
+// ── Per-draw uniforms (set by host to match vertex push-constant values) ──────
+varying vec4 jointInfoOut;  // x = jointCount, y = jointOffset, z = modelIndex
+// varying vec4 miscInfoOut;  // x = viewID, y = usePBR (0=legacy, 1=Cook-Torrance), z = isSpecular (0/1)
+
+// ── Engine lighting uniforms (shared with vertex shader) ──────────────────────
+uniform vec3  lightDirection;
+uniform vec3  lightColor;
+uniform vec3  ambientColor;
+uniform float lightIntensity;
+uniform int   currentModelIndex; // Fallback when push constants aren't set
+
+// ── Varyings ──────────────────────────────────────────────────────────────────
+flat varying int   shadowOut;
+varying vec4  miscInfoOut;  // x = viewID, y = usePBR (0=legacy, 1=Cook-Torrance), z = isSpecular (0/1), w = renderingShadowMap (0/1)
+
+// Split-screen
 varying float splitScreenModeOut; // 0=off, 1=2x2 grid, 2=2x1 vertical, 3=1x2 horizontal
-flat varying int currentViewID; // Which view/player is currently being rendered (0-3)
+flat varying int   currentViewID;
 
-varying vec3 lighting;
-varying vec4 fragPosLightSpace;
-varying vec2 vTexCoord;
+// Legacy lighting
+varying vec3  lighting;
+varying vec4  fragPosLightSpace;
+varying vec2  vTexCoord;
 
+// PBR (written by vertex shader)
+varying vec3  vertexNormal;
+varying vec4  worldPosition;
+varying vec4  viewPosition;
+varying vec3  worldCameraPos;  // world-space camera position for PBR view direction
+
+// ── PBR Constants & BRDF helpers ──────────────────────────────────────────────
+const float PI = 3.14159265359;
+
+// GGX normal-distribution function
+float D_GGX(float NdotH, float roughness) {
+    float a  = roughness * roughness;
+    float a2 = a * a;
+    float d  = (NdotH * NdotH) * (a2 - 1.0) + 1.0;
+    return a2 / (PI * d * d);
+}
+
+// Smith-GGX correlated visibility term
+float V_SmithGGXCorrelated(float NdotV, float NdotL, float roughness) {
+    float a2   = roughness * roughness * roughness * roughness;
+    float GGXV = NdotL * sqrt(NdotV * NdotV * (1.0 - a2) + a2);
+    float GGXL = NdotV * sqrt(NdotL * NdotL * (1.0 - a2) + a2);
+    return 0.5 / (GGXV + GGXL + 1e-5);
+}
+
+// Schlick Fresnel approximation
+vec3 F_Schlick(float cosTheta, vec3 F0) {
+    float fresnel = pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+    return clamp(F0 + (1.0 - F0) * fresnel, vec3(0.0), vec3(1.0));
+}
+
+// ── Utility ───────────────────────────────────────────────────────────────────
 float grid(vec2 vBC, float width) {
     vec3 bary = vec3(vBC.x, vBC.y, 1.0 - vBC.x - vBC.y);
-    vec3 d = fwidth(bary);
-    vec3 a3 = smoothstep(d * (width - 0.5), d * (width + 0.5), bary);
+    vec3 d    = fwidth(bary);
+    vec3 a3   = smoothstep(d * (width - 0.5), d * (width + 0.5), bary);
     return min(min(a3.x, a3.y), a3.z);
 }
 
@@ -29,75 +89,66 @@ float ShadowCalculation() {
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
     
+    // DEBUG: Visualize shadow map coordinates (red=X, green=Y, blue=depth)
+    // return projCoords;
+
     // Early out if outside shadow map bounds
-    if (projCoords.x < 0.0 || projCoords.x > 1.0 || 
-        projCoords.y < 0.0 || projCoords.y > 1.0 || 
+    if (projCoords.x < 0.0 || projCoords.x > 1.0 ||
+        projCoords.y < 0.0 || projCoords.y > 1.0 ||
         projCoords.z > 1.0) {
         return 0.0;
     }
-    
+
     float closestDepth = texture2D(shadowMap, projCoords.xy).r;
     float currentDepth = projCoords.z;
+    
+    // DEBUG: Visualize shadow map depth (should show gradient)
+    // return closestDepth;
+    // DEBUG: Visualize current fragment depth
+    // return currentDepth;
+    // DEBUG: Visualize depth difference (green=lit, red=shadow)
+    // return currentDepth > closestDepth ? 1.0 : 0.0;
+    
     return currentDepth > closestDepth ? 0.5 : 0.0;
 }
 
-vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) { 
+vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) {
     float splitX = 0.5; // Vertical split at 50%
     float splitY = 0.5; // Horizontal split at 50%
-    
-    // Scissor-based split-screen: discard pixels outside current view's viewport
+
+    // ── Split-screen scissoring ───────────────────────────────────────────────
     if (splitScreenModeOut == 1.0) {
         // 2x2 grid - each view gets a quadrant
         if (currentViewID == 0) {
             // Bottom-left quadrant
-            if (screen_coords.x >= splitX || screen_coords.y >= splitY) {
-                discard;
-            }
+            if (screen_coords.x >= splitX || screen_coords.y >= splitY) discard;
         } else if (currentViewID == 1) {
             // Bottom-right quadrant
-            if (screen_coords.x < splitX || screen_coords.y >= splitY) {
-                discard;
-            }
+            if (screen_coords.x < splitX || screen_coords.y >= splitY) discard;
         } else if (currentViewID == 2) {
             // Top-left quadrant
-            if (screen_coords.x >= splitX || screen_coords.y < splitY) {
-                discard;
-            }
+            if (screen_coords.x >= splitX || screen_coords.y < splitY) discard;
         } else if (currentViewID == 3) {
             // Top-right quadrant
-            if (screen_coords.x < splitX || screen_coords.y < splitY) {
-                discard;
-            }
+            if (screen_coords.x < splitX || screen_coords.y < splitY) discard;
         }
     } else if (splitScreenModeOut == 2.0) {
         // 2x1 vertical split
         if (currentViewID == 0) {
-            // Left half
-            if (screen_coords.x >= splitX) {
-                discard;
-            }
+            if (screen_coords.x >= splitX) discard;
         } else {
-            // Right half
-            if (screen_coords.x < splitX) {
-                discard;
-            }
+            if (screen_coords.x < splitX) discard;
         }
     } else if (splitScreenModeOut == 3.0) {
         // 1x2 horizontal split
         if (currentViewID == 1) {
-            // Bottom half
-            if (screen_coords.y < splitY) {
-                discard;
-            }
+            if (screen_coords.y < splitY) discard;
         // } else {
-        //     // Top half
-        //     if (screen_coords.y < splitY) {
-        //         discard;
-        //     }
+        //     if (screen_coords.y < splitY) discard;
         }
     }
-    
-    // Draw split-screen borders (thin lines at split boundaries)
+
+    // ── Split-screen borders (thin lines at split boundaries) ─────────────────
     float borderWidth = 0.002;
     if (splitScreenModeOut > 0.0) {
         if ((abs(screen_coords.x - splitX) < borderWidth && splitScreenModeOut != 3.0) ||
@@ -105,32 +156,307 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) 
             return vec4(0.1, 0.1, 0.1, 1.0); // Dark border
         }
     }
-    
-    vec4 pixel = Texel(texture, texture_coords);
-    
-    // Calculate shadows once for both paths
-    float shadows = 0.0;
-    if (shadowOut == 1) {
-        shadows = ShadowCalculation();
-    }
 
-    if (isSpecularOut == 1) {
+    // Early return for shadow map rendering - depth is written automatically
+    // if (miscInfoOut.w > 0.5) { return vec4(1.0); }
+
+    vec4 pixel = Texel(texture, texture_coords);
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  PBR PATH  (Cook-Torrance GGX, Blender Principled BSDF equivalent)
+    // ══════════════════════════════════════════════════════════════════════════
+    if (miscInfoOut.y > 0.5) {
+        // Shadow calculation for PBR path
+        float shadows = 0.0;
+        if (miscInfoOut.w > 0.5) {
+            shadows = ShadowCalculation();
+            // DEBUG: Visualize shadow value (0.0=lit, 0.5=shadow)
+            // return vec4(vec3(shadows), 1.0);
+            // DEBUG: Visualize shadow factor (1.0=lit, 0.5=shadowed)
+            return vec4(vec3(1.0 - shadows), 1.0);
+        }
+        float shadowFactor = 1.0 - shadows;
+        
+        int  modelIdx = int(jointInfoOut.z);
+        vec2 uv = texture_coords;
+
+        // --- Base color -------------------------------------------------------
+        // Separate RGB and alpha handling to prevent alpha from darkening colors
+        vec3 baseColorRGB = pixel.rgb * color.rgb;
+        float baseAlpha = pixel.a * color.a;
+        
+        // SAFETY: Clamp baseColor to valid range to prevent color distortion
+        baseColorRGB = clamp(baseColorRGB, vec3(0.0), vec3(1.0));
+        
+        // SAFETY: Check if baseColor is magenta (missing/unset texture)
+        float baseMagenta = baseColorRGB.r * baseColorRGB.b * (1.0 - baseColorRGB.g);
+        if (baseMagenta > 0.5) {
+            baseColorRGB = vec3(0.5); // Replace magenta with neutral gray
+        }
+        
+        // --- Alpha handling ---------------------------------------------------
+        float finalAlpha = baseAlpha;
+        bool forceBlack = false;
+        
+        // OPAQUE mode: if neither alphaBlend nor alphaMask is set
+        if (alphaMode[modelIdx].x < 0.5 && alphaMode[modelIdx].y < 0.5) {
+            // In OPAQUE mode, check for areas with low alpha (should be black)
+            if (pixel.a < 0.5) {
+                // Mark to render as black
+                forceBlack = true;
+                baseColorRGB = vec3(0.0);
+            }
+            // All visible areas in OPAQUE mode are fully opaque
+            baseAlpha = 1.0;
+            finalAlpha = 1.0;
+        } else if (alphaMode[modelIdx].y > 0.5) {  // MASK mode
+            if (baseAlpha < emissiveFactor[modelIdx].w) discard;
+            finalAlpha = 1.0; // MASK mode outputs binary alpha (either visible=1.0 or discarded)
+        }
+        // BLEND mode (alphaMode.x > 0.5): use baseAlpha as-is for per-pixel transparency
+        
+        vec4 baseColor = vec4(baseColorRGB, baseAlpha);
+
+        // --- Normal map -------------------------------------------------------
+        vec3 N = normalize(vertexNormal);
+        if (pbrFlags[modelIdx].x > 0.5) {          // hasNormalMap
+            vec3 normalSample = Texel(normalMap, uv).xyz * 2.0 - 1.0;
+            // DEBUG: Check if normalMap is magenta/missing
+            // return vec4(Texel(normalMap, uv).rgb, 1.0);
+            normalSample.xy  *= metallicRoughnessFactors[modelIdx].z; // normalScale
+            // Derivative-based TBN (no TANGENT attribute required)
+            vec3 dpx  = dFdx(worldPosition.xyz);
+            vec3 dpy  = dFdy(worldPosition.xyz);
+            vec2 duvx = dFdx(uv);
+            vec2 duvy = dFdy(uv);
+            vec3 T = normalize(dpx * duvy.y - dpy * duvx.y);
+            vec3 B = normalize(dpy * duvx.x - dpx * duvy.x);
+            N = normalize(mat3(T, B, N) * normalSample);
+        }
+        // DEBUG: Visualize normals (world-space)
+        // return vec4(N * 0.5 + 0.5, 1.0);
+
+        // --- Metallic & roughness ---------------------------------------------
+        float metallic  = metallicRoughnessFactors[modelIdx].x;
+        float roughness = metallicRoughnessFactors[modelIdx].y;
+        if (pbrFlags[modelIdx].y > 0.5) {          // hasMetallicRoughnessMap
+            vec4 mrSample = Texel(metallicRoughnessMap, uv);
+            // DEBUG: Check if metallicRoughnessMap is magenta/missing
+            // return vec4(mrSample.rgb, 1.0);
+            roughness *= mrSample.g;               // G = roughness
+            metallic  *= mrSample.b;               // B = metallic
+        }
+        roughness = clamp(roughness, 0.04, 1.0);
+        // DEBUG: Visualize metallic (grayscale) and roughness (red channel)
+        // return vec4(metallic, roughness, 0.0, 1.0);
+
+        // --- Ambient occlusion ------------------------------------------------
+        float ao = 1.0;
+        if (pbrFlags[modelIdx].w > 0.5) {          // hasOcclusionMap
+            // DEBUG: Check if occlusionMap is magenta/missing
+            // return vec4(vec3(Texel(occlusionMap, uv).r), 1.0);
+            ao = mix(1.0, Texel(occlusionMap, uv).r, metallicRoughnessFactors[modelIdx].w);
+        }
+
+        // --- Cook-Torrance BRDF -----------------------------------------------
+        // SAFETY: If lightDirection is zero/unset, default to directional from above
+        vec3 safeLightDir = lightDirection;
+        if (dot(safeLightDir, safeLightDir) < 0.001) {
+            safeLightDir = vec3(0.0, 1.0, 0.0); // fallback: light from above
+        }
+        
+        vec3  lDir  = normalize(safeLightDir);
+        vec3  vDir  = normalize(worldCameraPos - worldPosition.xyz); // world-space eye direction
+        vec3  H     = normalize(lDir + vDir);
+        float NdotL = max(dot(N, lDir), 0.0);
+        float NdotV = max(dot(N, vDir), 0.0);
+        float NdotH = max(dot(N, H),    0.0);
+        float HdotV = max(dot(H, vDir), 0.0);
+        // DEBUG: Visualize NdotL (should show clear gradient from lit to unlit side)
+        // return vec4(vec3(NdotL), 1.0);
+        // DEBUG: Visualize light direction itself
+        // return vec4(lDir * 0.5 + 0.5, 1.0);
+        // DEBUG: Visualize view direction
+        // return vec4(vDir * 0.5 + 0.5, 1.0);
+
+        // F0: dielectric base is 0.04, metals use baseColor as F0
+        vec3 F0 = mix(vec3(0.04), baseColor.rgb, metallic);
+        
+        // SAFETY: Clamp F0 to valid range to prevent color distortion
+        F0 = clamp(F0, vec3(0.0), vec3(1.0));
+        
+        // SAFETY: For metals, remove magenta cast from F0 to prevent blue->magenta->white Fresnel
+        if (metallic > 0.5) {
+            // If F0 has both high red and high blue (magenta/purple cast)
+            float magentaCast = min(F0.r, F0.b) / (max(F0.g, 0.01) + 0.01);
+            if (magentaCast > 1.5 && F0.b > 0.3) {
+                // Reduce red channel to remove magenta, keeping blue
+                F0.r = min(F0.r, F0.g * 1.2);
+            }
+        }
+        
+        // SAFETY: Check if F0 is magenta (missing/unset texture indicator)
+        float f0Magenta = F0.r * F0.b * (1.0 - F0.g);
+        if (f0Magenta > 0.5) {
+            // Replace magenta F0 with neutral gray for metals, or standard dielectric
+            F0 = mix(vec3(0.04), vec3(0.5), metallic);
+        }
+        
+        // If F0 is very dark/black and area has transparency, mark as black
+        if (finalAlpha == 0.0) {
+            float f0Brightness = dot(F0, vec3(0.299, 0.587, 0.114)); // Luminance of F0
+            if (f0Brightness < 0.1) {
+                forceBlack = true;
+                baseColorRGB = vec3(0.0);
+                baseColor = vec4(0.0, 0.0, 0.0, 1.0);
+                F0 = vec3(0.04); // Reset F0 to dielectric default
+                finalAlpha = 1.0; // Force opaque
+            }
+        }
+        
+        vec3 F  = F_Schlick(HdotV, F0);
+
+        float D = D_GGX(NdotH, roughness);
+        float V = V_SmithGGXCorrelated(NdotV, NdotL, roughness);
+        // For direct lighting, the specular term should use F calculated with NdotH (half vector)
+        vec3 F_direct = F_Schlick(max(dot(N, H), 0.0), F0);
+        vec3  specularBRDF = (D * V) * F_direct;
+
+        vec3 kD = (1.0 - F) * (1.0 - metallic);
+        vec3 diffuseBRDF  = kD * baseColor.rgb / PI;
+
+        // SAFETY: Prevent magenta/unset lightColor
+        vec3 safeLightColor = lightColor;
+        if (dot(safeLightColor, safeLightColor) < 0.001) {
+            safeLightColor = vec3(1.0); // fallback to white light
+        }
+        // SAFETY: Check if lightColor is magenta (missing/unset indicator)
+        float lightMagenta = safeLightColor.r * safeLightColor.b * (1.0 - safeLightColor.g);
+        if (lightMagenta > 0.5) {
+            safeLightColor = vec3(1.0); // Replace magenta with white light
+        }
+        // SAFETY: Clamp light color channels to prevent negative or extreme values
+        safeLightColor = clamp(safeLightColor, vec3(0.0), vec3(1.5));
+        
+        float clampedIntensity = clamp(lightIntensity, 0.0, 10.0); // Prevent extreme values
+        vec3 directLight = (diffuseBRDF + specularBRDF) * safeLightColor * clampedIntensity * NdotL * shadowFactor;
+        // DEBUG: Check if lightColor is set properly
+        // return vec4(lightColor, 1.0);
+        // DEBUG: Check lightIntensity value
+        // return vec4(vec3(lightIntensity), 1.0);
+        // DEBUG: Visualize specular BRDF only (should show highlights)
+        // return vec4(specularBRDF * 10.0, 1.0);
+        // DEBUG: Visualize diffuse only
+        // return vec4(diffuseBRDF * lightColor * lightIntensity * NdotL, 1.0);
+        // DEBUG: Visualize F0
+        // return vec4(F0, 1.0);
+        // DEBUG: Visualize Fresnel term
+        // return vec4(F, 1.0);
+        // DEBUG: Visualize F_direct
+        // return vec4(F_direct * 10.0, 1.0);
+        // DEBUG: Visualize safeLightColor
+        // return vec4(safeLightColor, 1.0);
+        // DEBUG: Visualize direct specular component
+        // return vec4(specularBRDF * safeLightColor * clampedIntensity * NdotL, 1.0);
+
+        // --- Ambient + AO -----------------------------------------------------
+        // PBR without IBL: fake directional environment reflection for metallic surfaces
+        vec3 R = reflect(-vDir, N); // Reflection vector based on camera direction
+        // Fake spherical/panoramic mapping from reflection vector
+        vec2 specUV = vec2(atan(R.x, R.z) / (2.0 * PI) + 0.5, acos(R.y) / PI);
+        vec3 specularMapColor = Texel(specularMap, specUV).rgb;
+        
+        // SAFETY: Check if specularMap is magenta (missing texture indicator)
+        float magentateness = specularMapColor.r * specularMapColor.b * (1.0 - specularMapColor.g);
+        if (magentateness > 0.5) {
+            specularMapColor = vec3(1.0); // Replace magenta with white
+        }
+        
+        // SAFETY: Prevent magenta/unset ambientColor
+        vec3 safeAmbientColor = ambientColor;
+        if (dot(safeAmbientColor, safeAmbientColor) < 0.001) {
+            safeAmbientColor = vec3(0.1); // fallback to dim gray ambient
+        }
+        
+        float skyFactor = max(dot(R, vec3(0.0, 1.0, 0.0)), 0.0); // How much reflection points upward (fake sky)
+        float viewFactor = pow(1.0 - NdotV, 2.0); // Boost at grazing angles (camera-dependent)
+        vec3 ambientSpecular = F * safeAmbientColor * specularMapColor * (0.5 + 0.5 * skyFactor) * (1.0 + viewFactor);
+        vec3 ambient = (kD * baseColor.rgb + ambientSpecular) * ao;
+        // DEBUG: Check if ambientColor is set properly
+        // return vec4(ambientColor, 1.0);
+        // DEBUG: Visualize ambient specular (should show on metals)
+        // return vec4(ambientSpecular, 1.0);
+        // DEBUG: Visualize specular map
+        // return vec4(specularMapColor, 1.0);
+
+        // --- Emissive ---------------------------------------------------------
+        vec3 emissive = emissiveFactor[modelIdx].xyz;
+        if (pbrFlags[modelIdx].z > 0.5) {          // hasEmissiveMap
+            // DEBUG: Check if emissiveMap is magenta/missing
+            // return vec4(Texel(emissiveMap, uv).rgb, 1.0);
+            emissive *= Texel(emissiveMap, uv).rgb;
+        }
+
+        // --- Composite --------------------------------------------------------
+        vec3 finalColor = ambient + directLight + emissive;
+        
+        // If marked as black area, ensure alpha stays opaque (lighting already applied to black base)
+        if (forceBlack) {
+            finalAlpha = 1.0;
+        }
+        
+        // DEBUG: Visualize base color only
+        // return vec4(baseColor.rgb, 1.0);
+        // DEBUG: Visualize ambient only
+        // return vec4(ambient, 1.0);
+        // DEBUG: Visualize direct light only
+        // return vec4(directLight, 1.0);
+        // DEBUG: Visualize AO
+        // return vec4(vec3(ao), 1.0);
+
+        // ACES filmic tone-mapping (matches Blender Cycles approximation)
+        finalColor = finalColor / (finalColor + vec3(0.155)) * vec3(1.019);
+
+        return vec4(finalColor, finalAlpha);
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  LEGACY SPECULAR PATH
+    // ══════════════════════════════════════════════════════════════════════════
+    } else if (miscInfoOut.z > 0.5) {
+        // Shadow for legacy paths
+        float shadows = 0.0;
+        if (miscInfoOut.w > 0.5) {
+            shadows = ShadowCalculation();
+        }
+        float shadowFactor = 1.0 - shadows;
+        
         vec3 specularColor = texture2D(specularMap, vec2(vTexCoord.x, 1.0 - vTexCoord.y)).rgb;
 
         // Hardcoded vectors - could be uniforms for better performance
-        vec3 viewDir = vec3(0.0, 0.0, 1.0);
-        vec3 normal = vec3(0.0, 0.0, 1.0);
-        vec3 lightDir = vec3(0.0, 0.0, 1.0);
+        vec3 viewDir    = vec3(0.0, 0.0, 1.0);
+        vec3 normal     = vec3(0.0, 0.0, 1.0);
+        vec3 lightDir   = vec3(0.0, 0.0, 1.0);
         vec3 reflectDir = reflect(-lightDir, normal);
-        float spec = pow(max(dot(viewDir, reflectDir), 0.0), 16.0);
+        float spec      = pow(max(dot(viewDir, reflectDir), 0.0), 16.0);
 
-        vec3 specular = specularColor * spec;
-        vec3 baseColor = (1.0 - shadows) * (pixel.rgb * lighting * 0.5);
+        vec3 specular     = specularColor * spec;
+        vec3 baseColor    = shadowFactor * (pixel.rgb * lighting * 0.5);
         vec3 blendedColor = mix(baseColor, baseColor + specular * 0.75, 0.5);
-    
+
         return vec4(blendedColor, pixel.a) * color.a;
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  LEGACY DIFFUSE PATH
+    // ══════════════════════════════════════════════════════════════════════════
     } else {
-        vec3 baseColor = (1.0 - shadows) * (pixel.rgb * lighting);
+        // Shadow for legacy paths
+        float shadows = 0.0;
+        if (miscInfoOut.w > 0.5) {
+            shadows = ShadowCalculation();
+        }
+        float shadowFactor = 1.0 - shadows;
+        
+        vec3 baseColor = shadowFactor * (pixel.rgb * lighting);
         return vec4(baseColor, pixel.a) * color.a;
-    }    
+    }
 }
