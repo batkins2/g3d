@@ -2,6 +2,8 @@
 // september 2021
 // MIT license
 
+layout (push_constant) uniform constants { vec4 jointInfo; vec4 miscInfo; };
+
 // ── Standard maps ─────────────────────────────────────────────────────────────
 uniform sampler2D shadowMap;
 uniform sampler2D specularMap;
