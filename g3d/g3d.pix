@@ -5,7 +5,7 @@
 layout (push_constant) uniform constants { vec4 jointInfo; vec4 miscInfo; };
 
 // ── Standard maps ─────────────────────────────────────────────────────────────
-uniform sampler2D shadowMap;
+uniform sampler2DShadow shadowMap;
 uniform sampler2D specularMap;
 
 // ── PBR texture maps (glTF / Blender Principled BSDF slots) ───────────────────
