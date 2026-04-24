@@ -22,6 +22,7 @@ uniform vec3 lightColor;
 uniform vec3 ambientColor;
 uniform float lightIntensity;
 uniform mat4 lightSpaceMatrix;
+uniform mat4 lightViewMatrix;
 uniform mat4 viewMatrix;
 uniform mat4 viewMatrix2;
 uniform mat4 viewMatrix3;
@@ -100,6 +101,10 @@ vec4 position(mat4 transformProjection, vec4 vertexPosition) {
     currentViewID = viewID;
     mat4 vm = getViewMatrix(viewID);
     mat4 pm = getProjectionMatrix(viewID);
+    if (miscInfo.w > 0.5) { // Check if rendering shadow map
+        vm = lightViewMatrix;
+        pm = projectionMatrix; // For shadow mapping, we use the main projection matrix (or could use a separate one)
+    }
     // Reconstruct world-space camera position: camPos = -R^T * t  (R = mat3(vm), t = vm[3].xyz)
     worldCameraPos = -(transpose(mat3(vm)) * vm[3].xyz);
     if (jointInfo.x == 0) {
@@ -112,7 +117,13 @@ vec4 position(mat4 transformProjection, vec4 vertexPosition) {
         // --- Outputs for fragment shader ---
         worldPosition = transformedPosition;
         viewPosition = vm * worldPosition;
-        screenPosition = pm * viewPosition;
+        // Depth pass: use the combined light-space matrix (ortho * view) directly
+        // so vertices are projected with the correct light orthographic frustum.
+        if (miscInfo.w > 0.5) {
+            screenPosition = lightSpaceMatrix * worldPosition;
+        } else {
+            screenPosition = pm * viewPosition;
+        }
         vertexNormal = transformedNormal;
         vertexColor = VertexColor;
 
@@ -188,7 +199,12 @@ vec4 position(mat4 transformProjection, vec4 vertexPosition) {
         // --- Outputs for fragment shader ---
         worldPosition = transformedPosition;
         viewPosition = vm * worldPosition;
-        screenPosition = pm * viewPosition;
+        // Depth pass: use the combined light-space matrix (ortho * view) directly
+        if (miscInfo.w > 0.5) {
+            screenPosition = lightSpaceMatrix * worldPosition;
+        } else {
+            screenPosition = pm * viewPosition;
+        }
         vertexNormal = transformedNormal;
         vertexColor = VertexColor;
 

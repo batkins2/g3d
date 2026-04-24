@@ -5,8 +5,9 @@
 layout (push_constant) uniform constants { vec4 jointInfo; vec4 miscInfo; };
 
 // ── Standard maps ─────────────────────────────────────────────────────────────
-uniform sampler2DShadow shadowMap;
+uniform sampler2D shadowMap;
 uniform sampler2D specularMap;
+uniform int hasSpecularMap = 0;  // Set to 1 if specularMap is bound, 0 otherwise
 
 // ── PBR texture maps (glTF / Blender Principled BSDF slots) ───────────────────
 uniform sampler2D normalMap;            // Tangent-space normal map
@@ -87,34 +88,196 @@ float grid(vec2 vBC, float width) {
     return min(min(a3.x, a3.y), a3.z);
 }
 
-float ShadowCalculation() {
+// ── Shadow debug mode ─────────────────────────────────────────────────────────
+// 0 = off (normal rendering)
+// 1 = show projCoords.z (currentDepth) as grayscale
+// 2 = show closestDepth (shadow map texel) as grayscale
+// 3 = show (currentDepth - closestDepth) amplified — green=lit, red=shadow
+// 4 = show projCoords.xy as RG, blue=0 (UV coverage check)
+// 5 = show raw shadow map texel (what the light sees)
+uniform int shadowDebugMode = 0;
+
+// Outputs shadow debug colour into 'debugOut'.  Returns the normal shadow
+// factor (0.0 lit / 0.5 shadow) so the caller can use it either way.
+float ShadowCalculation(out vec4 debugOut) {
+    debugOut = vec4(0.0);
+
+    if (shadowOut == 0) return 0.0;
+
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
-    
-    // DEBUG: Visualize shadow map coordinates (red=X, green=Y, blue=depth)
-    // return projCoords;
 
-    // Early out if outside shadow map bounds
+    // Outside frustum — show solid blue in debug modes
     if (projCoords.x < 0.0 || projCoords.x > 1.0 ||
         projCoords.y < 0.0 || projCoords.y > 1.0 ||
-        projCoords.z > 1.0) {
+        projCoords.z < 0.0 || projCoords.z > 1.0) {
+        debugOut = vec4(0.0, 0.0, 1.0, 1.0); // Blue: outside frustum
         return 0.0;
     }
 
-    float closestDepth = texture2D(shadowMap, projCoords.xy).r;
+    float closestDepth = texture2D(shadowMap, vec2(projCoords.x, 1.0 - projCoords.y)).r;
     float currentDepth = projCoords.z;
-    
-    // DEBUG: Visualize shadow map depth (should show gradient)
-    // return closestDepth;
-    // DEBUG: Visualize current fragment depth
-    // return currentDepth;
-    // DEBUG: Visualize depth difference (green=lit, red=shadow)
-    // return currentDepth > closestDepth ? 1.0 : 0.0;
-    
-    return currentDepth > closestDepth ? 0.5 : 0.0;
+
+    // If the shadow map is empty (all zeros = not populated or not bound),
+    // treat every fragment as fully lit rather than fully shadowed.
+    if (closestDepth < 0.0001) return 0.0;
+
+    float NdotL_abs = abs(dot(normalize(vertexNormal), normalize(lightDirection)));
+    float bias = max(0.0005 * (1.0 - NdotL_abs), 0.0001);
+
+    // PCF soft shadows — Gaussian-weighted 5x5 kernel (antialiased edges)
+    // Weight computed analytically via exp() — no array constructor needed.
+    vec2 texelSize = vec2(1.0) / vec2(textureSize(shadowMap, 0));
+    float shadow = 0.0;
+    float weightSum = 0.0;
+    for (int x = -2; x <= 2; x++) {
+        for (int y = -2; y <= 2; y++) {
+            float fx = float(x); float fy = float(y);
+            float w = exp(-(fx*fx + fy*fy) * 0.5); // Gaussian sigma=1
+            vec2 offset = vec2(fx, fy) * texelSize;
+            float pcfDepth = texture2D(shadowMap, vec2(projCoords.x + offset.x, 1.0 - projCoords.y - offset.y)).r;
+            if (pcfDepth >= 0.0001) {
+                shadow += (currentDepth <= (pcfDepth - bias) ? 1.0 : 0.0) * w;
+                weightSum += w;
+            }
+        }
+    }
+    shadow = (weightSum > 0.0) ? shadow / weightSum : 0.0;
+
+    // Populate debug colour
+    if (shadowDebugMode == 1) {
+        // currentDepth as grayscale ×20 — shows receiver depth from light
+        debugOut = vec4(vec3(currentDepth * 20.0), 1.0);
+    } else if (shadowDebugMode == 2) {
+        // closestDepth (shadow map stored value) as grayscale, amplified ×20
+        // so near-zero values (tight ortho range) are still visible.
+        debugOut = vec4(vec3(closestDepth * 20.0), 1.0);
+    } else if (shadowDebugMode == 3) {
+        // Signed difference amplified ×50 — green means lit, red means shadowed
+        float diff = (currentDepth - closestDepth) * 50.0;
+        debugOut = vec4(max(diff, 0.0), max(-diff, 0.0), 0.0, 1.0);
+    } else if (shadowDebugMode == 4) {
+        // UV coverage — should tile [0,1] across the scene
+        debugOut = vec4(projCoords.x, projCoords.y, 0.0, 1.0);
+    } else if (shadowDebugMode == 5) {
+        // Raw shadow map texel value
+        debugOut = vec4(vec3(closestDepth), 1.0);
+    } else {
+        debugOut = vec4(vec3(shadow), 1.0); // default: lit/shadow binary
+    }
+
+    return shadow;
+}
+
+// Overload accepting surface normal for correct bias calculation with normal maps
+float ShadowCalculation(out vec4 debugOut, vec3 surfaceNormal) {
+    debugOut = vec4(0.0);
+
+    if (shadowOut == 0) return 0.0;
+
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;
+
+    if (projCoords.x < 0.0 || projCoords.x > 1.0 ||
+        projCoords.y < 0.0 || projCoords.y > 1.0 ||
+        projCoords.z < 0.0 || projCoords.z > 1.0) {
+        debugOut = vec4(0.0, 0.0, 1.0, 1.0);
+        return 0.0;
+    }
+
+    float closestDepth = texture2D(shadowMap, vec2(projCoords.x, 1.0 - projCoords.y)).r;
+    float currentDepth = projCoords.z;
+
+    if (closestDepth < 0.0001) return 0.0;
+
+    // Use provided surface normal for bias calculation (works with normal maps)
+    float NdotL_abs = abs(dot(normalize(surfaceNormal), normalize(lightDirection)));
+    float bias = max(0.0005 * (1.0 - NdotL_abs), 0.0001);
+
+    // PCF soft shadows — Gaussian-weighted 5x5 kernel (antialiased edges)
+    vec2 texelSize = vec2(1.0) / vec2(textureSize(shadowMap, 0));
+    float shadow = 0.0;
+    float weightSum = 0.0;
+    for (int x = -2; x <= 2; x++) {
+        for (int y = -2; y <= 2; y++) {
+            float fx = float(x); float fy = float(y);
+            float w = exp(-(fx*fx + fy*fy) * 0.5); // Gaussian sigma=1
+            vec2 offset = vec2(fx, fy) * texelSize;
+            float pcfDepth = texture2D(shadowMap, vec2(projCoords.x + offset.x, 1.0 - projCoords.y - offset.y)).r;
+            if (pcfDepth >= 0.0001) {
+                shadow += (currentDepth <= (pcfDepth - bias) ? 1.0 : 0.0) * w;
+                weightSum += w;
+            }
+        }
+    }
+    shadow = (weightSum > 0.0) ? shadow / weightSum : 0.0;
+
+    if (shadowDebugMode == 1) {
+        debugOut = vec4(vec3(currentDepth * 20.0), 1.0);
+    } else if (shadowDebugMode == 2) {
+        debugOut = vec4(vec3(closestDepth * 20.0), 1.0);
+    } else if (shadowDebugMode == 3) {
+        float diff = (currentDepth - closestDepth) * 50.0;
+        debugOut = vec4(max(diff, 0.0), max(-diff, 0.0), 0.0, 1.0);
+    } else if (shadowDebugMode == 4) {
+        debugOut = vec4(projCoords.x, projCoords.y, 0.0, 1.0);
+    } else if (shadowDebugMode == 5) {
+        debugOut = vec4(vec3(closestDepth), 1.0);
+    } else {
+        debugOut = vec4(vec3(shadow), 1.0);
+    }
+
+    return shadow;
+}
+
+// Overload with no debug output for call sites that don't need it
+float ShadowCalculation() {
+    vec4 _unused;
+    return ShadowCalculation(_unused);
 }
 
 vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) {
+    // Depth pass: write linear depth into the shadow map's R channel.
+    // alpha=1 is required so LOVE's blending does not discard the write.
+    // Must be before any discard so no fragments are culled during depth fill.
+    if (miscInfoOut.w > 0.5) { 
+        // if (Texel(texture, texture_coords).a < 0.5) discard; // Only write depth for opaque areas
+        // Write light-space depth to R channel.
+        // float ndcZ = fragPosLightSpace.z / fragPosLightSpace.w;
+        // float depth = ndcZ * 0.5 + 0.5;  // [-1,1] → [0,1], near=0 far=1
+
+        // DEBUG: Uncomment ONE of these to diagnose shadow map depth issues:
+        // (A) World-space Y as color — should show clear variation between ground and objects
+        // return vec4(worldPosition.y * 0.1, 0.0, 0.0, 1.0);
+        // (B) World-space distance from origin — should show gradient
+        // return vec4(length(worldPosition.xyz) * 0.05, 0.0, 0.0, 1.0);
+        // (C) Raw fragPosLightSpace components — R=x, G=y, B=z (before perspective divide)
+        // return vec4(abs(fragPosLightSpace.xyz) * 0.1, 1.0);
+        // (D) NDC Z only, amplified — should show variation if lightSpaceMatrix Z-scale works
+        // return vec4(ndcZ * 5.0, -ndcZ * 5.0, 0.0, 1.0);  // green=positive, red=negative
+
+        return vec4(0.0);
+    }
+
+    // DEBUG DIAGNOSTIC: Uncomment the next line to check if objects are rendering
+    // to the shadow map canvas WITHOUT miscInfoOut.w set. If you see magenta on
+    // objects in the shadow map texture, they are going through the color path
+    // instead of the depth path (miscInfo.w not set for those draw calls).
+    // return vec4(1.0, 0.0, 1.0, 1.0);
+    // Set debugShadowCoords = true to visualize light-space projected coordinates:
+    //   RGB gradient  = correct coords in frustum (R=U, G=V, B=depth)
+    //   Solid red     = outside light frustum (wrong matrix / object out of range)
+    //   Solid magenta = NaN (lightSpaceMatrix not sent / all-zero matrix)
+    const bool debugShadowCoords = false;
+    if (debugShadowCoords) {
+        vec3 pc = fragPosLightSpace.xyz / fragPosLightSpace.w;
+        pc = pc * 0.5 + 0.5;
+        if (pc.x != pc.x) return vec4(1.0, 0.0, 1.0, 1.0); // Magenta: NaN
+        if (pc.x < 0.0 || pc.x > 1.0 || pc.y < 0.0 || pc.y > 1.0 || pc.z < 0.0 || pc.z > 1.0)
+            return vec4(1.0, 0.0, 0.0, 1.0); // Red: outside frustum
+        return vec4(pc, 1.0); // RGB: U, V, depth
+    }
+
     float splitX = 0.5; // Vertical split at 50%
     float splitY = 0.5; // Horizontal split at 50%
 
@@ -159,26 +322,12 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) 
         }
     }
 
-    // Early return for shadow map rendering - depth is written automatically
-    // if (miscInfoOut.w > 0.5) { return vec4(1.0); }
-
     vec4 pixel = Texel(texture, texture_coords);
 
     // ══════════════════════════════════════════════════════════════════════════
     //  PBR PATH  (Cook-Torrance GGX, Blender Principled BSDF equivalent)
     // ══════════════════════════════════════════════════════════════════════════
     if (miscInfoOut.y > 0.5) {
-        // Shadow calculation for PBR path
-        float shadows = 0.0;
-        if (miscInfoOut.w > 0.5) {
-            shadows = ShadowCalculation();
-            // DEBUG: Visualize shadow value (0.0=lit, 0.5=shadow)
-            // return vec4(vec3(shadows), 1.0);
-            // DEBUG: Visualize shadow factor (1.0=lit, 0.5=shadowed)
-            return vec4(vec3(1.0 - shadows), 1.0);
-        }
-        float shadowFactor = 1.0 - shadows;
-        
         int  modelIdx = int(jointInfoOut.z);
         vec2 uv = texture_coords;
 
@@ -202,12 +351,6 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) 
         
         // OPAQUE mode: if neither alphaBlend nor alphaMask is set
         if (alphaMode[modelIdx].x < 0.5 && alphaMode[modelIdx].y < 0.5) {
-            // In OPAQUE mode, check for areas with low alpha (should be black)
-            if (pixel.a < 0.5) {
-                // Mark to render as black
-                forceBlack = true;
-                baseColorRGB = vec3(0.0);
-            }
             // All visible areas in OPAQUE mode are fully opaque
             baseAlpha = 1.0;
             finalAlpha = 1.0;
@@ -218,6 +361,9 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) 
         // BLEND mode (alphaMode.x > 0.5): use baseAlpha as-is for per-pixel transparency
         
         vec4 baseColor = vec4(baseColorRGB, baseAlpha);
+        
+        // DEBUG: Check if forceBlack was triggered incorrectly
+        // if (forceBlack) return vec4(1.0, 0.0, 1.0, 1.0);  // Show magenta where forceBlack=true
 
         // --- Normal map -------------------------------------------------------
         vec3 N = normalize(vertexNormal);
@@ -231,12 +377,32 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) 
             vec3 dpy  = dFdy(worldPosition.xyz);
             vec2 duvx = dFdx(uv);
             vec2 duvy = dFdy(uv);
-            vec3 T = normalize(dpx * duvy.y - dpy * duvx.y);
-            vec3 B = normalize(dpy * duvx.x - dpx * duvy.x);
-            N = normalize(mat3(T, B, N) * normalSample);
+            // Guard against degenerate UV derivatives (UV seams / flat UV) which
+            // would produce normalize(vec3(0)) = NaN and corrupt shadow bias.
+            vec3 crossT = dpx * duvy.y - dpy * duvx.y;
+            vec3 crossB = dpy * duvx.x - dpx * duvy.x;
+            if (dot(crossT, crossT) > 1e-8 && dot(crossB, crossB) > 1e-8) {
+                vec3 T = normalize(crossT);
+                vec3 B = normalize(crossB);
+                N = normalize(mat3(T, B, N) * normalSample);
+            }
+            // else: keep smooth vertex normal (degenerate UV — avoid NaN)
         }
         // DEBUG: Visualize normals (world-space)
         // return vec4(N * 0.5 + 0.5, 1.0);
+
+        // --- Shadow calculation (after normal is computed for proper bias) -------
+        // Use vertexNormal (never NaN) for shadow bias — TBN-computed N is used
+        // for lighting only. Shadow bias only needs a stable surface normal.
+        vec4 shadowDebugColor;
+        float shadows = ShadowCalculation(shadowDebugColor, vertexNormal);
+        if (shadowDebugMode > 0) return shadowDebugColor;
+        float shadowFactor = max(1.0 - shadows, 0.4); // 0.4 = minimum light in shadow
+        
+        // DEBUG: Visualize shadowFactor directly (should be 0 in shadows, 1.0 white in light)
+        // return vec4(vec3(shadowFactor), 1.0);
+        // DEBUG: Check if lightDirection is inverted (should show: up surfaces=lit if light from above)
+        // return vec4(vec3(max(dot(N, normalize(lightDirection)), 0.0)), 1.0);
 
         // --- Metallic & roughness ---------------------------------------------
         float metallic  = metallicRoughnessFactors[modelIdx].x;
@@ -276,6 +442,8 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) 
         float HdotV = max(dot(H, vDir), 0.0);
         // DEBUG: Visualize NdotL (should show clear gradient from lit to unlit side)
         // return vec4(vec3(NdotL), 1.0);
+        // DEBUG: Check if NdotL is zero everywhere (would cause black directLight)
+        // return vec4(vec3(NdotL * 10.0), 1.0);  // Amplify to see if there's any variation
         // DEBUG: Visualize light direction itself
         // return vec4(lDir * 0.5 + 0.5, 1.0);
         // DEBUG: Visualize view direction
@@ -326,6 +494,13 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) 
 
         vec3 kD = (1.0 - F) * (1.0 - metallic);
         vec3 diffuseBRDF  = kD * baseColor.rgb / PI;
+        
+        // DEBUG: Check if diffuse BRDF is zero (if so, material is fully metallic or baseColor is black)
+        // return vec4(diffuseBRDF * 10.0, 1.0);
+        // DEBUG: Check if specular BRDF is zero
+        // return vec4(specularBRDF * 10.0, 1.0);
+        // DEBUG: Check kD (should be >0 for non-metallic surfaces)
+        // return vec4(kD, 1.0);
 
         // SAFETY: Prevent magenta/unset lightColor
         vec3 safeLightColor = lightColor;
@@ -364,14 +539,22 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) 
         // --- Ambient + AO -----------------------------------------------------
         // PBR without IBL: fake directional environment reflection for metallic surfaces
         vec3 R = reflect(-vDir, N); // Reflection vector based on camera direction
-        // Fake spherical/panoramic mapping from reflection vector
-        vec2 specUV = vec2(atan(R.x, R.z) / (2.0 * PI) + 0.5, acos(R.y) / PI);
-        vec3 specularMapColor = Texel(specularMap, specUV).rgb;
+        vec3 specularMapColor = vec3(1.0); // Default to neutral white
         
-        // SAFETY: Check if specularMap is magenta (missing texture indicator)
-        float magentateness = specularMapColor.r * specularMapColor.b * (1.0 - specularMapColor.g);
-        if (magentateness > 0.5) {
-            specularMapColor = vec3(1.0); // Replace magenta with white
+        if (hasSpecularMap > 0) {
+            // Fake spherical/panoramic mapping from reflection vector
+            vec2 specUV = vec2(atan(R.x, R.z) / (2.0 * PI) + 0.5, acos(R.y) / PI);
+            specularMapColor = Texel(specularMap, specUV).rgb;
+            
+            // SAFETY: Check if specularMap is magenta (missing texture indicator)
+            float magentateness = specularMapColor.r * specularMapColor.b * (1.0 - specularMapColor.g);
+            if (magentateness > 0.5) {
+                specularMapColor = vec3(1.0); // Replace magenta with white
+            }
+            // If specularMap returned black (unbound/default), treat as neutral white
+            if (dot(specularMapColor, specularMapColor) < 0.001) {
+                specularMapColor = vec3(1.0);
+            }
         }
         
         // SAFETY: Prevent magenta/unset ambientColor
@@ -382,8 +565,12 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) 
         
         float skyFactor = max(dot(R, vec3(0.0, 1.0, 0.0)), 0.0); // How much reflection points upward (fake sky)
         float viewFactor = pow(1.0 - NdotV, 2.0); // Boost at grazing angles (camera-dependent)
-        vec3 ambientSpecular = F * safeAmbientColor * specularMapColor * (0.5 + 0.5 * skyFactor) * (1.0 + viewFactor);
-        vec3 ambient = (kD * baseColor.rgb + ambientSpecular) * ao;
+        // ambientSpecular is attenuated by shadowFactor: reflections dim in shadow
+        // (the occluded light source is no longer contributing to env reflections).
+        vec3 ambientSpecular = F * safeAmbientColor * specularMapColor * (0.5 + 0.5 * skyFactor) * (1.0 + viewFactor) * shadowFactor;
+        vec3 ambient = (kD * baseColor.rgb * safeAmbientColor + ambientSpecular) * ao;
+        // Ensure a minimum ambient floor so fully metallic surfaces are never pure black.
+        ambient = max(ambient, baseColor.rgb * safeAmbientColor * 0.05);
         // DEBUG: Check if ambientColor is set properly
         // return vec4(ambientColor, 1.0);
         // DEBUG: Visualize ambient specular (should show on metals)
@@ -411,13 +598,15 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) 
         // return vec4(baseColor.rgb, 1.0);
         // DEBUG: Visualize ambient only
         // return vec4(ambient, 1.0);
-        // DEBUG: Visualize direct light only
+        // DEBUG: Visualize direct light only (should be BLACK in shadows)
         // return vec4(directLight, 1.0);
+        // DEBUG: Check if ambient is too bright (shadows invisible if ambient >> directLight)
+        // return vec4(ambient * 0.5, 1.0);  // Multiply by 0.5 to see if ambient is too high
         // DEBUG: Visualize AO
         // return vec4(vec3(ao), 1.0);
 
-        // ACES filmic tone-mapping (matches Blender Cycles approximation)
-        finalColor = finalColor / (finalColor + vec3(0.155)) * vec3(1.019);
+        // ACES filmic tone-mapping (Narkowicz 2015 approximation)
+        finalColor = clamp((finalColor * (2.51 * finalColor + 0.03)) / (finalColor * (2.43 * finalColor + 0.59) + 0.14), 0.0, 1.0);
 
         return vec4(finalColor, finalAlpha);
 
@@ -425,14 +614,16 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) 
     //  LEGACY SPECULAR PATH
     // ══════════════════════════════════════════════════════════════════════════
     } else if (miscInfoOut.z > 0.5) {
-        // Shadow for legacy paths
-        float shadows = 0.0;
-        if (miscInfoOut.w > 0.5) {
-            shadows = ShadowCalculation();
-        }
-        float shadowFactor = 1.0 - shadows;
+        float shadows = ShadowCalculation();
+        float shadowFactor = max(1.0 - shadows, 0.4);
         
-        vec3 specularColor = texture2D(specularMap, vec2(vTexCoord.x, 1.0 - vTexCoord.y)).rgb;
+        vec3 specularColor = vec3(1.0); // Default to white if no specular map
+        if (hasSpecularMap > 0) {
+            specularColor = texture2D(specularMap, vec2(vTexCoord.x, 1.0 - vTexCoord.y)).rgb;
+            // SAFETY: Check for magenta (missing texture)
+            float mag = specularColor.r * specularColor.b * (1.0 - specularColor.g);
+            if (mag > 0.5) specularColor = vec3(1.0);
+        }
 
         // Hardcoded vectors - could be uniforms for better performance
         vec3 viewDir    = vec3(0.0, 0.0, 1.0);
@@ -441,8 +632,12 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) 
         vec3 reflectDir = reflect(-lightDir, normal);
         float spec      = pow(max(dot(viewDir, reflectDir), 0.0), 16.0);
 
-        vec3 specular     = specularColor * spec;
-        vec3 baseColor    = shadowFactor * (pixel.rgb * lighting * 0.5);
+        // Separate ambient from directional: lighting = diffuse*lightColor*intensity + ambient
+        // Shadow only affects the directional component, ambient stays
+        vec3 ambientPart = pixel.rgb * ambientColor;
+        vec3 directPart  = pixel.rgb * (lighting - ambientColor) * shadowFactor;
+        vec3 specular     = specularColor * spec * shadowFactor;
+        vec3 baseColor    = (ambientPart + directPart) * 0.5;
         vec3 blendedColor = mix(baseColor, baseColor + specular * 0.75, 0.5);
 
         return vec4(blendedColor, pixel.a) * color.a;
@@ -451,14 +646,13 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) 
     //  LEGACY DIFFUSE PATH
     // ══════════════════════════════════════════════════════════════════════════
     } else {
-        // Shadow for legacy paths
-        float shadows = 0.0;
-        if (miscInfoOut.w > 0.5) {
-            shadows = ShadowCalculation();
-        }
-        float shadowFactor = 1.0 - shadows;
+        float shadows = ShadowCalculation();
+        float shadowFactor = max(1.0 - shadows, 0.4);
         
-        vec3 baseColor = shadowFactor * (pixel.rgb * lighting);
+        // Separate ambient from directional: shadow only affects directional component
+        vec3 ambientPart = pixel.rgb * ambientColor;
+        vec3 directPart  = pixel.rgb * (lighting - ambientColor) * shadowFactor;
+        vec3 baseColor = ambientPart + directPart;
         return vec4(baseColor, pixel.a) * color.a;
     }
 }
